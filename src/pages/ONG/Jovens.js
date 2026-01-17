@@ -135,7 +135,7 @@ const ONGJovens = () => {
         const formDataUpload = new FormData();
         formDataUpload.append('document', file);
         
-        const response = await fetch('http://localhost:5001/api/upload/document', {
+        const response = await fetch('https://impulso-jovem.onrender.com/api/upload/document', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
