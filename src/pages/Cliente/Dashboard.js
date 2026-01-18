@@ -815,9 +815,9 @@ const ClienteDashboard = () => {
                   setPinInput(value);
                 }}
                 style={{
-                  fontSize: '32px',
+                  fontSize: '16px',
                   textAlign: 'center',
-                  letterSpacing: '12px',
+                  letterSpacing: '8px',
                   fontWeight: '700'
                 }}
                 autoFocus
