@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Impulso Jovem</title>
+    <script>
+      // Redireciona para a página principal com a rota preservada
+      const path = window.location.pathname;
+      window.location.replace('/' + (path === '/' ? '' : '?redirect=' + path));
+    </script>
+  </head>
+  <body>
+    Redirecionando...
+  </body>
+</html>
