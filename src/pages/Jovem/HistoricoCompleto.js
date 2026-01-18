@@ -16,6 +16,10 @@ const JovemHistoricoCompleto = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [generatedPin, setGeneratedPin] = useState('');
   const [generatingPin, setGeneratingPin] = useState(false);
+  const [showOnlyRecent, setShowOnlyRecent] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     loadBookings();
@@ -32,7 +36,13 @@ const JovemHistoricoCompleto = () => {
     try {
       if (!silent) setLoading(true);
       const response = await bookingService.getAll({ jovemId: user.id });
-      setBookings(response.data);
+      // Ordenar do mais recente para o mais antigo
+      const sortedBookings = response.data.sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.date);
+        const dateB = new Date(b.createdAt || b.date);
+        return dateB - dateA; // Mais recente primeiro
+      });
+      setBookings(sortedBookings);
     } catch (error) {
       console.error('Erro ao carregar histórico:', error);
     } finally {
@@ -57,13 +67,46 @@ const JovemHistoricoCompleto = () => {
   };
 
   const filteredBookings = bookings.filter(booking => {
-    if (filter === 'all') return true;
-    if (filter === 'confirmed') return booking.status === 'confirmed';
-    if (filter === 'in_progress') return booking.status === 'in_progress' || booking.status === 'checked_in';
-    if (filter === 'completed') return booking.status === 'completed';
-    if (filter === 'cancelled') return booking.status === 'cancelled';
+    // Filtro por status
+    if (filter === 'all') {
+      // não faz nada
+    } else if (filter === 'confirmed') {
+      if (booking.status !== 'confirmed') return false;
+    } else if (filter === 'in_progress') {
+      if (booking.status !== 'in_progress' && booking.status !== 'checked_in') return false;
+    } else if (filter === 'completed') {
+      if (booking.status !== 'completed') return false;
+    } else if (filter === 'cancelled') {
+      if (booking.status !== 'cancelled') return false;
+    }
+    
+    // Filtro de busca
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      const matchesService = booking.serviceName?.toLowerCase().includes(term);
+      const matchesClient = booking.clientName?.toLowerCase().includes(term);
+      const matchesDescription = booking.clientDescription?.toLowerCase().includes(term);
+      if (!matchesService && !matchesClient && !matchesDescription) return false;
+    }
+    
     return true;
   });
+  
+  // Aplicar filtro de "apenas 5 últimos"
+  const displayBookings = showOnlyRecent 
+    ? filteredBookings.slice(0, 5) 
+    : filteredBookings;
+  
+  // Paginação
+  const totalPages = Math.ceil(displayBookings.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedBookings = displayBookings.slice(startIndex, endIndex);
+  
+  // Resetar página ao mudar filtros
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, searchTerm, showOnlyRecent]);
 
   const confirmedBookings = bookings.filter(b => b.status === 'confirmed');
   const inProgressBookings = bookings.filter(b => b.status === 'in_progress' || b.status === 'checked_in');
@@ -203,10 +246,44 @@ const JovemHistoricoCompleto = () => {
           </div>
         </Card>
 
+        {/* Barra de Busca e Checkbox */}
+        <Card style={{ marginTop: '20px' }}>
+          <div style={{ marginBottom: '16px' }}>
+            <input
+              type="text"
+              className="input"
+              placeholder="🔍 Buscar por serviço, cliente ou descrição..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <input
+              type="checkbox"
+              id="showOnlyRecent"
+              checked={showOnlyRecent}
+              onChange={(e) => setShowOnlyRecent(e.target.checked)}
+              style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+            />
+            <label 
+              htmlFor="showOnlyRecent" 
+              style={{ cursor: 'pointer', userSelect: 'none', fontSize: '14px' }}
+            >
+              Mostrar apenas os 5 últimos serviços
+            </label>
+          </div>
+        </Card>
+
         {/* Lista de Serviços */}
         <Card style={{ marginTop: '20px' }}>
-          <CardHeader>📋 Histórico de Serviços</CardHeader>
-          {filteredBookings.length === 0 ? (
+          <CardHeader>
+            📋 Histórico de Serviços 
+            <span style={{ fontSize: '14px', color: '#666', marginLeft: '8px' }}>
+              ({displayBookings.length} {displayBookings.length === 1 ? 'serviço' : 'serviços'})
+            </span>
+          </CardHeader>
+          {paginatedBookings.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px' }}>
               <div style={{ fontSize: '48px', marginBottom: '16px' }}>📭</div>
               <p style={{ color: 'var(--gray)' }}>
@@ -215,7 +292,7 @@ const JovemHistoricoCompleto = () => {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {filteredBookings.map(booking => (
+              {paginatedBookings.map(booking => (
                 <Card key={booking.id} style={{ backgroundColor: '#f8f9fa', border: '2px solid #e0e0e0' }}>
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
@@ -346,6 +423,81 @@ const JovemHistoricoCompleto = () => {
                   </div>
                 </Card>
               ))}
+            </div>
+          )}
+          
+          {/* Paginação */}
+          {!showOnlyRecent && totalPages > 1 && (
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center',
+              gap: '8px',
+              marginTop: '20px',
+              paddingTop: '20px',
+              borderTop: '1px solid #e0e0e0'
+            }}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                style={{ 
+                  padding: '8px 16px',
+                  opacity: currentPage === 1 ? 0.5 : 1,
+                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
+                }}
+              >
+                ← Anterior
+              </button>
+              
+              <div style={{ 
+                display: 'flex', 
+                gap: '4px',
+                alignItems: 'center'
+              }}>
+                {[...Array(totalPages)].map((_, i) => {
+                  const page = i + 1;
+                  // Mostrar apenas páginas próximas da atual
+                  if (
+                    page === 1 || 
+                    page === totalPages || 
+                    (page >= currentPage - 1 && page <= currentPage + 1)
+                  ) {
+                    return (
+                      <button
+                        key={page}
+                        className={`btn ${page === currentPage ? 'btn-primary' : 'btn-secondary'}`}
+                        onClick={() => setCurrentPage(page)}
+                        style={{ 
+                          padding: '8px 12px',
+                          minWidth: '40px'
+                        }}
+                      >
+                        {page}
+                      </button>
+                    );
+                  } else if (
+                    page === currentPage - 2 || 
+                    page === currentPage + 2
+                  ) {
+                    return <span key={page} style={{ padding: '8px 4px' }}>...</span>;
+                  }
+                  return null;
+                })}
+              </div>
+              
+              <button
+                className="btn btn-secondary"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                style={{ 
+                  padding: '8px 16px',
+                  opacity: currentPage === totalPages ? 0.5 : 1,
+                  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
+                }}
+              >
+                Próxima →
+              </button>
             </div>
           )}
         </Card>

@@ -5,6 +5,7 @@ import Card, { CardHeader } from '../../components/Card';
 import { useAuth } from '../../contexts/AuthContext';
 import { bookingService } from '../../services';
 import api from '../../services/api';
+import { getImageUrl } from '../../utils/imageUtils';
 
 const ClienteAgendamentosCompleto = () => {
   const { user } = useAuth();
@@ -442,10 +443,55 @@ const ClienteAgendamentosCompleto = () => {
                         padding: '12px', 
                         borderRadius: '8px', 
                         marginBottom: '12px',
-                        border: '1px solid #e0e0e0'
+                        border: '1px solid #e0e0e0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px'
                       }}>
-                        <div style={{ fontSize: '13px', marginBottom: '4px' }}>
-                          👤 <strong>Jovem:</strong> {booking.jovemName}
+                        {booking.jovemPhoto ? (
+                          <img 
+                            src={getImageUrl(booking.jovemPhoto)}
+                            alt={booking.jovemName}
+                            style={{ 
+                              width: '50px', 
+                              height: '50px', 
+                              borderRadius: '50%', 
+                              objectFit: 'cover',
+                              border: '2px solid var(--primary-blue)'
+                            }}
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <div style={{ 
+                            width: '50px', 
+                            height: '50px', 
+                            borderRadius: '50%', 
+                            background: 'var(--gradient)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            fontWeight: '700',
+                            fontSize: '20px'
+                          }}>
+                            {booking.jovemName?.charAt(0)?.toUpperCase() || '👤'}
+                          </div>
+                        )}
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '13px', color: '#666', marginBottom: '2px' }}>
+                            Jovem
+                          </div>
+                          <div style={{ fontSize: '15px', fontWeight: '600' }}>
+                            {booking.jovemName}
+                          </div>
+                          {booking.jovemStats && (
+                            <div style={{ fontSize: '12px', color: '#888', marginTop: '2px' }}>
+                              ⭐ {booking.jovemStats.rating?.toFixed(1) || '0.0'} • 
+                              {' '}{booking.jovemStats.completedServices || 0} serviços
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
