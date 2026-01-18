@@ -334,7 +334,11 @@ const ONGJovens = () => {
         const formDataUpload = new FormData();
         formDataUpload.append('document', file);
         
-        const response = await api.post('/upload/document', formDataUpload);
+        const response = await api.post('/upload/document', formDataUpload, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
         
         if (response.data) {
           uploadedFiles.push({
