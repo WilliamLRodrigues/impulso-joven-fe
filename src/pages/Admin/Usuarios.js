@@ -9,6 +9,19 @@ const AdminUsuarios = () => {
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    userType: 'cliente',
+    phone: '',
+    address: ''
+  });
 
   useEffect(() => {
     loadUsers();
@@ -20,9 +33,112 @@ const AdminUsuarios = () => {
       setUsers(response.data);
     } catch (error) {
       console.error('Erro ao carregar usuários:', error);
+      alert('Erro ao carregar usuários');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    try {
+      await adminService.createUser(formData);
+      alert('Usuário criado com sucesso!');
+      setShowCreateModal(false);
+      setFormData({
+        name: '',
+        email: '',
+        password: '',
+        userType: 'cliente',
+        phone: '',
+        address: ''
+      });
+      loadUsers();
+    } catch (error) {
+      console.error('Erro ao criar usuário:', error);
+      alert(error.response?.data?.error || 'Erro ao criar usuário');
+    }
+  };
+
+  const handleEditUser = async (e) => {
+    e.preventDefault();
+    try {
+      const updateData = { ...formData };
+      if (!updateData.password) {
+        delete updateData.password;
+      }
+      await adminService.updateUser(selectedUser.id, updateData);
+      alert('Usuário atualizado com sucesso!');
+      setShowEditModal(false);
+      setFormData({
+        name: '',
+        email: '',
+        password: '',
+        userType: 'cliente',
+        phone: '',
+        address: ''
+      });
+      setSelectedUser(null);
+      loadUsers();
+    } catch (error) {
+      console.error('Erro ao atualizar usuário:', error);
+      alert('Erro ao atualizar usuário');
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    try {
+      await adminService.deleteUser(selectedUser.id);
+      alert('Usuário deletado com sucesso!');
+      setShowDeleteModal(false);
+      setSelectedUser(null);
+      loadUsers();
+    } catch (error) {
+      console.error('Erro ao deletar usuário:', error);
+      alert('Erro ao deletar usuário');
+    }
+  };
+
+  const handleExportReport = async () => {
+    try {
+      const response = await adminService.exportReport();
+      const dataStr = JSON.stringify(response.data, null, 2);
+      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+      const exportFileDefaultName = `relatorio_${new Date().toISOString().split('T')[0]}.json`;
+      
+      const linkElement = document.createElement('a');
+      linkElement.setAttribute('href', dataUri);
+      linkElement.setAttribute('download', exportFileDefaultName);
+      linkElement.click();
+      
+      alert('Relatório exportado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao exportar relatório:', error);
+      alert('Erro ao exportar relatório');
+    }
+  };
+
+  const openEditModal = (user) => {
+    setSelectedUser(user);
+    setFormData({
+      name: user.name,
+      email: user.email,
+      password: '',
+      userType: user.userType,
+      phone: user.phone || '',
+      address: user.address || ''
+    });
+    setShowEditModal(true);
+  };
+
+  const openDetailModal = (user) => {
+    setSelectedUser(user);
+    setShowDetailModal(true);
+  };
+
+  const openDeleteModal = (user) => {
+    setSelectedUser(user);
+    setShowDeleteModal(true);
   };
 
   const filteredUsers = users.filter(user => {
@@ -203,14 +319,23 @@ const AdminUsuarios = () => {
                     <button 
                       className="btn btn-secondary"
                       style={{ flex: 1, padding: '6px', fontSize: '12px' }}
+                      onClick={() => openDetailModal(user)}
                     >
                       👁️ Ver Detalhes
                     </button>
                     <button 
                       className="btn btn-secondary"
                       style={{ flex: 1, padding: '6px', fontSize: '12px' }}
+                      onClick={() => openEditModal(user)}
                     >
                       ✏️ Editar
+                    </button>
+                    <button 
+                      className="btn btn-secondary"
+                      style={{ flex: 1, padding: '6px', fontSize: '12px', borderColor: '#EF5350', color: '#EF5350' }}
+                      onClick={() => openDeleteModal(user)}
+                    >
+                      🗑️
                     </button>
                   </div>
                 </div>
@@ -223,10 +348,26 @@ const AdminUsuarios = () => {
         <Card style={{ marginTop: '20px' }}>
           <CardHeader>⚡ Ações Administrativas</CardHeader>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <button className="btn btn-primary btn-full">
+            <button 
+              className="btn btn-primary btn-full"
+              onClick={() => {
+                setFormData({
+                  name: '',
+                  email: '',
+                  password: '',
+                  userType: 'cliente',
+                  phone: '',
+                  address: ''
+                });
+                setShowCreateModal(true);
+              }}
+            >
               ➕ Criar Novo Usuário
             </button>
-            <button className="btn btn-secondary btn-full">
+            <button 
+              className="btn btn-secondary btn-full"
+              onClick={handleExportReport}
+            >
               📊 Exportar Relatório
             </button>
             <button className="btn btn-secondary btn-full">
@@ -234,6 +375,323 @@ const AdminUsuarios = () => {
             </button>
           </div>
         </Card>
+
+        {/* Modal Criar Usuário */}
+        {showCreateModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px'
+          }}>
+            <div style={{
+              background: 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              maxWidth: '500px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflow: 'auto'
+            }}>
+              <h2 style={{ marginBottom: '20px', fontSize: '20px' }}>➕ Criar Novo Usuário</h2>
+              <form onSubmit={handleCreateUser}>
+                <div style={{ marginBottom: '16px' }}>
+                  <label className="label">Nome Completo</label>
+                  <input
+                    type="text"
+                    className="input"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  />
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label className="label">Email</label>
+                  <input
+                    type="email"
+                    className="input"
+                    required
+                    value={formData.email}
+                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  />
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label className="label">Senha</label>
+                  <input
+                    type="password"
+                    className="input"
+                    required
+                    value={formData.password}
+                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  />
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label className="label">Tipo de Usuário</label>
+                  <select
+                    className="input"
+                    required
+                    value={formData.userType}
+                    onChange={(e) => setFormData({...formData, userType: e.target.value})}
+                  >
+                    <option value="cliente">Cliente</option>
+                    <option value="jovem">Jovem</option>
+                    <option value="ong">ONG</option>
+                    <option value="admin">Administrador</option>
+                  </select>
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label className="label">Telefone</label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                  />
+                </div>
+                <div style={{ marginBottom: '20px' }}>
+                  <label className="label">Endereço</label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={formData.address}
+                    onChange={(e) => setFormData({...formData, address: e.target.value})}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
+                    Criar Usuário
+                  </button>
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary" 
+                    style={{ flex: 1 }}
+                    onClick={() => setShowCreateModal(false)}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Editar Usuário */}
+        {showEditModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px'
+          }}>
+            <div style={{
+              background: 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              maxWidth: '500px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflow: 'auto'
+            }}>
+              <h2 style={{ marginBottom: '20px', fontSize: '20px' }}>✏️ Editar Usuário</h2>
+              <form onSubmit={handleEditUser}>
+                <div style={{ marginBottom: '16px' }}>
+                  <label className="label">Nome Completo</label>
+                  <input
+                    type="text"
+                    className="input"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  />
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label className="label">Email</label>
+                  <input
+                    type="email"
+                    className="input"
+                    required
+                    value={formData.email}
+                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  />
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label className="label">Nova Senha (deixe em branco para manter)</label>
+                  <input
+                    type="password"
+                    className="input"
+                    value={formData.password}
+                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  />
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label className="label">Tipo de Usuário</label>
+                  <select
+                    className="input"
+                    required
+                    value={formData.userType}
+                    onChange={(e) => setFormData({...formData, userType: e.target.value})}
+                  >
+                    <option value="cliente">Cliente</option>
+                    <option value="jovem">Jovem</option>
+                    <option value="ong">ONG</option>
+                    <option value="admin">Administrador</option>
+                  </select>
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label className="label">Telefone</label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                  />
+                </div>
+                <div style={{ marginBottom: '20px' }}>
+                  <label className="label">Endereço</label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={formData.address}
+                    onChange={(e) => setFormData({...formData, address: e.target.value})}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
+                    Salvar Alterações
+                  </button>
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary" 
+                    style={{ flex: 1 }}
+                    onClick={() => setShowEditModal(false)}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Ver Detalhes */}
+        {showDetailModal && selectedUser && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px'
+          }}>
+            <div style={{
+              background: 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              maxWidth: '500px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflow: 'auto'
+            }}>
+              <h2 style={{ marginBottom: '20px', fontSize: '20px' }}>👤 Detalhes do Usuário</h2>
+              <div style={{ marginBottom: '16px' }}>
+                <strong>Nome:</strong> {selectedUser.name}
+              </div>
+              <div style={{ marginBottom: '16px' }}>
+                <strong>Email:</strong> {selectedUser.email}
+              </div>
+              <div style={{ marginBottom: '16px' }}>
+                <strong>Tipo:</strong> <span className={`badge ${getUserTypeBadge(selectedUser.userType)}`}>
+                  {getUserTypeLabel(selectedUser.userType)}
+                </span>
+              </div>
+              {selectedUser.phone && (
+                <div style={{ marginBottom: '16px' }}>
+                  <strong>Telefone:</strong> {selectedUser.phone}
+                </div>
+              )}
+              {selectedUser.address && (
+                <div style={{ marginBottom: '16px' }}>
+                  <strong>Endereço:</strong> {selectedUser.address}
+                </div>
+              )}
+              <div style={{ marginBottom: '20px' }}>
+                <strong>Cadastrado em:</strong> {new Date(selectedUser.createdAt).toLocaleDateString('pt-BR')} às {new Date(selectedUser.createdAt).toLocaleTimeString('pt-BR')}
+              </div>
+              <button 
+                className="btn btn-primary btn-full"
+                onClick={() => setShowDetailModal(false)}
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Deletar Usuário */}
+        {showDeleteModal && selectedUser && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px'
+          }}>
+            <div style={{
+              background: 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              maxWidth: '400px',
+              width: '100%'
+            }}>
+              <h2 style={{ marginBottom: '16px', fontSize: '20px', color: '#EF5350' }}>⚠️ Confirmar Exclusão</h2>
+              <p style={{ marginBottom: '20px', color: 'var(--gray)' }}>
+                Tem certeza que deseja excluir o usuário <strong>{selectedUser.name}</strong>? 
+                Esta ação não pode ser desfeita.
+              </p>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button 
+                  className="btn btn-secondary" 
+                  style={{ flex: 1, borderColor: '#EF5350', color: '#EF5350' }}
+                  onClick={handleDeleteUser}
+                >
+                  Sim, Excluir
+                </button>
+                <button 
+                  className="btn btn-secondary" 
+                  style={{ flex: 1 }}
+                  onClick={() => setShowDeleteModal(false)}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <BottomNav />

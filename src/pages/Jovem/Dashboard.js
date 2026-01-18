@@ -3,20 +3,29 @@ import Header from '../../components/Header';
 import BottomNav from '../../components/BottomNav';
 import Card, { CardHeader } from '../../components/Card';
 import { useAuth } from '../../contexts/AuthContext';
-import { jovemService, serviceService } from '../../services';
+import { jovemService, serviceService, bookingService } from '../../services';
+import { getImageUrl } from '../../utils/imageUtils';
 
 const JovemDashboard = () => {
   const { user } = useAuth();
   const [jovemData, setJovemData] = useState(null);
   const [availableServices, setAvailableServices] = useState([]);
   const [myServices, setMyServices] = useState([]);
+  const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadData();
+    
+    // Atualizar automaticamente a cada 10 segundos (silencioso)
+    const interval = setInterval(() => {
+      loadData(true); // true = atualização silenciosa
+    }, 10000);
+    
+    return () => clearInterval(interval);
   }, []);
 
-  const loadData = async () => {
+  const loadData = async (silent = false) => {
     try {
       const jovemResponse = await jovemService.getById(user.id);
       setJovemData(jovemResponse.data);
@@ -26,10 +35,13 @@ const JovemDashboard = () => {
 
       const myServicesResponse = await serviceService.getAll({ jovemId: user.id });
       setMyServices(myServicesResponse.data);
+      
+      const bookingsResponse = await bookingService.getAll({ jovemId: user.id });
+      setBookings(bookingsResponse.data);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -56,6 +68,63 @@ const JovemDashboard = () => {
       <Header title="Dashboard Jovem" />
       
       <div className="container">
+        {/* Perfil com Foto */}
+        <Card style={{ marginTop: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {jovemData?.photo ? (
+              <img 
+                src={getImageUrl(jovemData.photo)}
+                alt={user.name}
+                style={{ 
+                  width: '80px', 
+                  height: '80px', 
+                  borderRadius: '50%', 
+                  objectFit: 'cover',
+                  border: '3px solid var(--primary-blue)',
+                  boxShadow: '0 4px 8px rgba(0,0,0,0.15)'
+                }}
+              />
+            ) : (
+              <div style={{ 
+                width: '80px', 
+                height: '80px', 
+                borderRadius: '50%', 
+                backgroundColor: 'var(--light-gray)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '40px',
+                border: '3px solid #ddd'
+              }}>
+                👤
+              </div>
+            )}
+            <div>
+              <h3 style={{ margin: '0 0 4px 0', fontSize: '18px' }}>{user.name}</h3>
+              <div style={{ fontSize: '14px', color: 'var(--gray)' }}>
+                {jovemData?.availability ? '✅ Disponível para trabalhar' : '❌ Indisponível'}
+              </div>
+            </div>
+          </div>
+          
+          {jovemData?.description && (
+            <div style={{ 
+              marginTop: '16px',
+              padding: '12px',
+              backgroundColor: '#F5F5F5',
+              borderRadius: '8px',
+              fontSize: '13px',
+              color: '#333',
+              lineHeight: '1.5'
+            }}>
+              <div style={{ fontWeight: '600', marginBottom: '4px', color: '#666' }}>
+                📝 Sua Descrição:
+              </div>
+              {jovemData.description}
+            </div>
+          )}
+        </Card>
+
         {/* Estatísticas */}
         <Card style={{ background: 'var(--gradient)', color: 'white', marginTop: '20px' }}>
           <div style={{ textAlign: 'center' }}>
@@ -81,6 +150,21 @@ const JovemDashboard = () => {
                 </div>
                 <div style={{ fontSize: '12px', opacity: 0.9 }}>Pontos</div>
               </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Card de Ganhos */}
+        <Card style={{ marginTop: '20px', background: '#E8F5E9', border: '3px solid #4CAF50' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '14px', color: '#2E7D32', marginBottom: '8px', fontWeight: '600' }}>
+              💰 Total de Ganhos
+            </div>
+            <div style={{ fontSize: '48px', fontWeight: '700', color: '#1B5E20', marginBottom: '8px' }}>
+              R$ {(jovemData?.stats?.totalEarnings || 0).toFixed(2)}
+            </div>
+            <div style={{ fontSize: '13px', color: '#2E7D32' }}>
+              {bookings.filter(b => b.status === 'completed').length} serviços pagos
             </div>
           </div>
         </Card>

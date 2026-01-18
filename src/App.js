@@ -2,21 +2,23 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import PrivateRoute from './components/PrivateRoute';
+import ConnectionStatus from './components/ConnectionStatus';
 
 // Páginas públicas
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ChangePassword from './pages/ChangePassword';
 
 // Páginas Cliente
 import ClienteDashboard from './pages/Cliente/Dashboard';
 import ClienteServicos from './pages/Cliente/Servicos';
-import ClienteAgendamentos from './pages/Cliente/Agendamentos';
+import ClienteAgendamentos from './pages/Cliente/AgendamentosCompleto';
 
 // Páginas Jovem
 import JovemDashboard from './pages/Jovem/Dashboard';
 import JovemServicos from './pages/Jovem/Servicos';
-import JovemHistorico from './pages/Jovem/Historico';
+import JovemHistorico from './pages/Jovem/HistoricoCompleto';
 
 // Páginas ONG
 import ONGDashboard from './pages/ONG/Dashboard';
@@ -36,11 +38,13 @@ function App() {
   return (
     <AuthProvider>
       <Router>
+        <ConnectionStatus />
         <Routes>
           {/* Rotas Públicas */}
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/change-password" element={<ChangePassword />} />
 
           {/* Rotas Cliente */}
           <Route

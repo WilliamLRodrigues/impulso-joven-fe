@@ -3,12 +3,15 @@ import Header from '../../components/Header';
 import BottomNav from '../../components/BottomNav';
 import Card, { CardHeader } from '../../components/Card';
 import { useAuth } from '../../contexts/AuthContext';
-import { bookingService, reviewService } from '../../services';
+import { bookingService, reviewService, jovemService } from '../../services';
+import { getImageUrl } from '../../utils/imageUtils';
 
 const ClienteAgendamentos = () => {
   const { user } = useAuth();
   const [bookings, setBookings] = useState([]);
+  const [jovensData, setJovensData] = useState({});
   const [filter, setFilter] = useState('all');
+  const [hideCompleted, setHideCompleted] = useState(true); // Ocultar finalizados por padrão
   const [loading, setLoading] = useState(true);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -17,20 +20,42 @@ const ClienteAgendamentos = () => {
 
   useEffect(() => {
     loadBookings();
+    
+    // Atualizar automaticamente a cada 10 segundos (silencioso)
+    const interval = setInterval(() => {
+      loadBookings(true); // true = atualização silenciosa
+    }, 10000);
+    
+    return () => clearInterval(interval);
   }, [filter]);
 
-  const loadBookings = async () => {
+  const loadBookings = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const response = await bookingService.getAll({ 
         clientId: user.id,
         status: filter !== 'all' ? filter : undefined
       });
       setBookings(response.data);
+      
+      // Carregar dados dos jovens
+      const jovemIds = [...new Set(response.data.filter(b => b.jovemId).map(b => b.jovemId))];
+      const jovensDataTemp = {};
+      
+      for (const jovemId of jovemIds) {
+        try {
+          const jovemResponse = await jovemService.getById(jovemId);
+          jovensDataTemp[jovemId] = jovemResponse.data;
+        } catch (error) {
+          console.error(`Erro ao carregar jovem ${jovemId}:`, error);
+        }
+      }
+      
+      setJovensData(jovensDataTemp);
     } catch (error) {
       console.error('Erro ao carregar agendamentos:', error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -77,21 +102,25 @@ const ClienteAgendamentos = () => {
   const getStatusBadge = (status) => {
     const badges = {
       pending: 'badge-warning',
-      confirmed: 'badge-info',
+      assigned: 'badge-info',
+      confirmed: 'badge-success',
       in_progress: 'badge-info',
       completed: 'badge-success',
-      cancelled: 'badge-danger'
+      cancelled: 'badge-danger',
+      rejected: 'badge-danger'
     };
     return badges[status] || 'badge-info';
   };
 
   const getStatusText = (status) => {
     const texts = {
-      pending: 'Pendente',
-      confirmed: 'Confirmado',
+      pending: 'Aguardando Atribuição',
+      assigned: 'Aguardando Confirmação do Jovem',
+      confirmed: 'Confirmado pelo Jovem ✓',
       in_progress: 'Em Andamento',
       completed: 'Concluído',
-      cancelled: 'Cancelado'
+      cancelled: 'Cancelado',
+      rejected: 'Recusado pelo Jovem'
     };
     return texts[status] || status;
   };
@@ -141,11 +170,47 @@ const ClienteAgendamentos = () => {
           </Card>
         </div>
 
+        {/* Checkbox para ocultar finalizados */}
+        <div style={{ 
+          marginTop: '20px',
+          padding: '16px',
+          background: 'linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%)',
+          borderRadius: '12px',
+          border: '2px solid #2196F3',
+          boxShadow: '0 2px 8px rgba(33, 150, 243, 0.15)'
+        }}>
+          <label style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            cursor: 'pointer',
+            fontSize: '15px',
+            fontWeight: '600',
+            color: '#1565C0'
+          }}>
+            <input
+              type="checkbox"
+              checked={hideCompleted}
+              onChange={(e) => setHideCompleted(e.target.checked)}
+              style={{ 
+                marginRight: '12px',
+                width: '20px',
+                height: '20px',
+                cursor: 'pointer',
+                accentColor: '#2196F3'
+              }}
+            />
+            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '18px' }}>👁️</span>
+              <span>Ocultar agendamentos finalizados (concluídos e cancelados)</span>
+            </span>
+          </label>
+        </div>
+
         {/* Filtros */}
         <div style={{ 
           display: 'flex', 
           gap: '8px', 
-          marginTop: '20px',
+          marginTop: '16px',
           overflowX: 'auto',
           paddingBottom: '8px'
         }}>
@@ -184,36 +249,146 @@ const ClienteAgendamentos = () => {
           <div className="loading">
             <div className="spinner"></div>
           </div>
-        ) : bookings.length === 0 ? (
+        ) : bookings.filter(booking => {
+          // Aplicar filtro de status
+          if (filter !== 'all' && booking.status !== filter) return false;
+          // Aplicar filtro de ocultar finalizados
+          if (hideCompleted && (booking.status === 'completed' || booking.status === 'cancelled')) {
+            return false;
+          }
+          return true;
+        }).length === 0 ? (
           <Card style={{ marginTop: '20px', textAlign: 'center', padding: '40px' }}>
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>📅</div>
             <p style={{ color: 'var(--gray)' }}>
-              Nenhum agendamento encontrado
+              {hideCompleted && bookings.length > 0 
+                ? 'Todos os agendamentos estão finalizados. Desmarque o filtro para visualizá-los.'
+                : 'Nenhum agendamento encontrado'}
             </p>
           </Card>
         ) : (
           <div style={{ marginTop: '20px' }}>
-            {bookings.map((booking) => (
+            {bookings
+              .filter(booking => {
+                // Aplicar filtro de status
+                if (filter !== 'all' && booking.status !== filter) return false;
+                
+                // Aplicar filtro de ocultar finalizados
+                if (hideCompleted && (booking.status === 'completed' || booking.status === 'cancelled')) {
+                  return false;
+                }
+                
+                return true;
+              })
+              .map((booking) => (
               <Card key={booking.id} style={{ marginBottom: '16px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: '700', fontSize: '16px', marginBottom: '4px' }}>
                       {booking.serviceName || 'Serviço'}
                     </div>
-                    <div style={{ fontSize: '14px', color: 'var(--gray)' }}>
-                      {new Date(booking.createdAt).toLocaleDateString('pt-BR')} às{' '}
+                    <div style={{ fontSize: '14px', color: 'var(--gray)', marginBottom: '4px' }}>
+                      Solicitado em: {new Date(booking.createdAt).toLocaleDateString('pt-BR')} às{' '}
                       {new Date(booking.createdAt).toLocaleTimeString('pt-BR', { 
                         hour: '2-digit', 
                         minute: '2-digit' 
                       })}
                     </div>
+                    {booking.date && (
+                      <div style={{ fontSize: '14px', color: 'var(--gray)' }}>
+                        📅 Agendado para: {new Date(booking.date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                        {booking.time && ` às ${booking.time}`}
+                      </div>
+                    )}
                   </div>
                   <span className={`badge ${getStatusBadge(booking.status)}`} style={{ marginLeft: '12px' }}>
                     {getStatusText(booking.status)}
                   </span>
                 </div>
 
-                {booking.jovemId && (
+                {/* Mostrar informação de rejeição se houver */}
+                {booking.rejectionReason && booking.status === 'pending' && (
+                  <div style={{ 
+                    background: '#fff3cd', 
+                    padding: '12px', 
+                    borderRadius: '8px',
+                    marginBottom: '12px',
+                    border: '1px solid #ffeaa7'
+                  }}>
+                    <div style={{ fontSize: '13px', fontWeight: '600', color: '#856404', marginBottom: '4px' }}>
+                      ⚠️ Recusado pelo jovem anterior
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#856404' }}>
+                      Motivo: {booking.rejectionReason}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#856404', marginTop: '4px' }}>
+                      Estamos buscando outro profissional para você.
+                    </div>
+                  </div>
+                )}
+
+                {booking.jovemId && jovensData[booking.jovemId] && (
+                  <div style={{ 
+                    fontSize: '14px', 
+                    color: 'var(--gray)',
+                    marginBottom: '12px',
+                    paddingTop: '12px',
+                    borderTop: '1px solid var(--light-gray)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}>
+                    {jovensData[booking.jovemId].photo ? (
+                      <img 
+                        src={getImageUrl(jovensData[booking.jovemId].photo)}
+                        alt={jovensData[booking.jovemId].name}
+                        style={{ 
+                          width: '40px', 
+                          height: '40px', 
+                          borderRadius: '50%', 
+                          objectFit: 'cover',
+                          border: '2px solid var(--primary-blue)'
+                        }}
+                      />
+                    ) : (
+                      <div style={{ 
+                        width: '40px', 
+                        height: '40px', 
+                        borderRadius: '50%', 
+                        backgroundColor: 'var(--light-gray)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '20px',
+                        border: '2px solid #ddd'
+                      }}>
+                        👤
+                      </div>
+                    )}
+                    <div>
+                      <div style={{ fontWeight: '600', marginBottom: '2px' }}>
+                        {jovensData[booking.jovemId].name}
+                      </div>
+                      <div style={{ fontSize: '12px' }}>
+                        ⭐ {jovensData[booking.jovemId].stats?.rating?.toFixed(1) || '0.0'} • 
+                        💼 {jovensData[booking.jovemId].stats?.completedServices || 0} serviços
+                      </div>
+                      {jovensData[booking.jovemId].description && (
+                        <div style={{ 
+                          fontSize: '12px', 
+                          color: '#666', 
+                          marginTop: '6px',
+                          fontStyle: 'italic',
+                          lineHeight: '1.4'
+                        }}>
+                          "{jovensData[booking.jovemId].description}"
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {booking.jovemId && !jovensData[booking.jovemId] && (
                   <div style={{ 
                     fontSize: '14px', 
                     color: 'var(--gray)',
@@ -221,7 +396,7 @@ const ClienteAgendamentos = () => {
                     paddingTop: '12px',
                     borderTop: '1px solid var(--light-gray)'
                   }}>
-                    👨‍🎓 Jovem responsável: ID {booking.jovemId}
+                    👨‍🎓 Jovem responsável atribuído
                   </div>
                 )}
 

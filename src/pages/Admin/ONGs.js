@@ -9,6 +9,15 @@ const AdminONGs = () => {
   const [selectedOng, setSelectedOng] = useState(null);
   const [ongJovens, setOngJovens] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    address: '',
+    phone: '',
+    email: ''
+  });
 
   useEffect(() => {
     loadOngs();
@@ -20,6 +29,7 @@ const AdminONGs = () => {
       setOngs(response.data);
     } catch (error) {
       console.error('Erro ao carregar ONGs:', error);
+      alert('Erro ao carregar ONGs');
     } finally {
       setLoading(false);
     }
@@ -35,6 +45,64 @@ const AdminONGs = () => {
     }
   };
 
+  const handleCreateOng = async (e) => {
+    e.preventDefault();
+    try {
+      await ongService.create(formData);
+      alert('ONG criada com sucesso!');
+      setShowCreateModal(false);
+      setFormData({ name: '', address: '', phone: '', email: '' });
+      loadOngs();
+    } catch (error) {
+      console.error('Erro ao criar ONG:', error);
+      alert('Erro ao criar ONG');
+    }
+  };
+
+  const handleEditOng = async (e) => {
+    e.preventDefault();
+    try {
+      await ongService.update(selectedOng.id, formData);
+      alert('ONG atualizada com sucesso!');
+      setShowEditModal(false);
+      setFormData({ name: '', address: '', phone: '', email: '' });
+      loadOngs();
+      setSelectedOng(null);
+    } catch (error) {
+      console.error('Erro ao atualizar ONG:', error);
+      alert('Erro ao atualizar ONG');
+    }
+  };
+
+  const handleDeleteOng = async () => {
+    try {
+      await ongService.delete(selectedOng.id);
+      alert('ONG deletada com sucesso!');
+      setShowDeleteModal(false);
+      setSelectedOng(null);
+      loadOngs();
+    } catch (error) {
+      console.error('Erro ao deletar ONG:', error);
+      alert('Erro ao deletar ONG');
+    }
+  };
+
+  const openEditModal = (ong) => {
+    setSelectedOng(ong);
+    setFormData({
+      name: ong.name,
+      address: ong.address,
+      phone: ong.phone,
+      email: ong.email || ''
+    });
+    setShowEditModal(true);
+  };
+
+  const openDeleteModal = (ong) => {
+    setSelectedOng(ong);
+    setShowDeleteModal(true);
+  };
+
   if (loading) {
     return (
       <div className="loading">
@@ -48,6 +116,18 @@ const AdminONGs = () => {
       <Header title="Gerenciar ONGs" />
       
       <div className="container">
+        {/* Botão Criar Nova ONG */}
+        <button 
+          className="btn btn-primary btn-full"
+          style={{ marginTop: '20px' }}
+          onClick={() => {
+            setFormData({ name: '', address: '', phone: '', email: '' });
+            setShowCreateModal(true);
+          }}
+        >
+          ➕ Cadastrar Nova ONG
+        </button>
+
         {/* Resumo */}
         <Card style={{ background: 'var(--gradient)', color: 'white', marginTop: '20px' }}>
           <div style={{ textAlign: 'center' }}>
@@ -108,6 +188,29 @@ const AdminONGs = () => {
                       <span style={{ color: 'var(--gray)' }}>⭐</span>
                       {' '}{ong.stats?.rating?.toFixed(1) || '0.0'}
                     </div>
+                  </div>
+                  
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                    <button 
+                      className="btn btn-secondary"
+                      style={{ flex: 1, padding: '6px', fontSize: '12px' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openEditModal(ong);
+                      }}
+                    >
+                      ✏️ Editar
+                    </button>
+                    <button 
+                      className="btn btn-secondary"
+                      style={{ flex: 1, padding: '6px', fontSize: '12px', borderColor: '#EF5350', color: '#EF5350' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openDeleteModal(ong);
+                      }}
+                    >
+                      🗑️ Excluir
+                    </button>
                   </div>
                 </div>
               ))}
@@ -182,7 +285,10 @@ const AdminONGs = () => {
             <Card style={{ marginTop: '20px' }}>
               <CardHeader>⚙️ Ações</CardHeader>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <button className="btn btn-primary btn-full">
+                <button 
+                  className="btn btn-primary btn-full"
+                  onClick={() => openEditModal(selectedOng)}
+                >
                   ✏️ Editar Informações
                 </button>
                 <button className="btn btn-secondary btn-full">
@@ -191,12 +297,226 @@ const AdminONGs = () => {
                 <button 
                   className="btn btn-secondary btn-full"
                   style={{ borderColor: '#EF5350', color: '#EF5350' }}
+                  onClick={() => openDeleteModal(selectedOng)}
                 >
-                  🗑️ Desativar ONG
+                  🗑️ Excluir ONG
                 </button>
               </div>
             </Card>
           </>
+        )}
+
+        {/* Modal Criar ONG */}
+        {showCreateModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px'
+          }}>
+            <div style={{
+              background: 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              maxWidth: '500px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflow: 'auto'
+            }}>
+              <h2 style={{ marginBottom: '20px', fontSize: '20px' }}>➕ Cadastrar Nova ONG</h2>
+              <form onSubmit={handleCreateOng}>
+                <div style={{ marginBottom: '16px' }}>
+                  <label className="label">Nome da ONG</label>
+                  <input
+                    type="text"
+                    className="input"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  />
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label className="label">Endereço</label>
+                  <input
+                    type="text"
+                    className="input"
+                    required
+                    value={formData.address}
+                    onChange={(e) => setFormData({...formData, address: e.target.value})}
+                  />
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label className="label">Telefone</label>
+                  <input
+                    type="text"
+                    className="input"
+                    required
+                    value={formData.phone}
+                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                  />
+                </div>
+                <div style={{ marginBottom: '20px' }}>
+                  <label className="label">Email</label>
+                  <input
+                    type="email"
+                    className="input"
+                    value={formData.email}
+                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
+                    Criar ONG
+                  </button>
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary" 
+                    style={{ flex: 1 }}
+                    onClick={() => setShowCreateModal(false)}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Editar ONG */}
+        {showEditModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px'
+          }}>
+            <div style={{
+              background: 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              maxWidth: '500px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflow: 'auto'
+            }}>
+              <h2 style={{ marginBottom: '20px', fontSize: '20px' }}>✏️ Editar ONG</h2>
+              <form onSubmit={handleEditOng}>
+                <div style={{ marginBottom: '16px' }}>
+                  <label className="label">Nome da ONG</label>
+                  <input
+                    type="text"
+                    className="input"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  />
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label className="label">Endereço</label>
+                  <input
+                    type="text"
+                    className="input"
+                    required
+                    value={formData.address}
+                    onChange={(e) => setFormData({...formData, address: e.target.value})}
+                  />
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label className="label">Telefone</label>
+                  <input
+                    type="text"
+                    className="input"
+                    required
+                    value={formData.phone}
+                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                  />
+                </div>
+                <div style={{ marginBottom: '20px' }}>
+                  <label className="label">Email</label>
+                  <input
+                    type="email"
+                    className="input"
+                    value={formData.email}
+                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
+                    Salvar Alterações
+                  </button>
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary" 
+                    style={{ flex: 1 }}
+                    onClick={() => setShowEditModal(false)}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Deletar ONG */}
+        {showDeleteModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px'
+          }}>
+            <div style={{
+              background: 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              maxWidth: '400px',
+              width: '100%'
+            }}>
+              <h2 style={{ marginBottom: '16px', fontSize: '20px', color: '#EF5350' }}>⚠️ Confirmar Exclusão</h2>
+              <p style={{ marginBottom: '20px', color: 'var(--gray)' }}>
+                Tem certeza que deseja excluir a ONG <strong>{selectedOng?.name}</strong>? 
+                Esta ação não pode ser desfeita.
+              </p>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button 
+                  className="btn btn-secondary" 
+                  style={{ flex: 1, borderColor: '#EF5350', color: '#EF5350' }}
+                  onClick={handleDeleteOng}
+                >
+                  Sim, Excluir
+                </button>
+                <button 
+                  className="btn btn-secondary" 
+                  style={{ flex: 1 }}
+                  onClick={() => setShowDeleteModal(false)}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 

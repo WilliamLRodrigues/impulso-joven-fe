@@ -10,12 +10,49 @@ const Register = () => {
     password: '',
     phone: '',
     address: '',
+    complement: '',
+    cep: '',
+    cnpj: '',
+    country: 'Brasil',
+    state: '',
+    city: '',
     userType: 'cliente'
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
+
+  // Estados brasileiros
+  const estadosBrasileiros = [
+    { uf: 'AC', nome: 'Acre' },
+    { uf: 'AL', nome: 'Alagoas' },
+    { uf: 'AP', nome: 'Amapá' },
+    { uf: 'AM', nome: 'Amazonas' },
+    { uf: 'BA', nome: 'Bahia' },
+    { uf: 'CE', nome: 'Ceará' },
+    { uf: 'DF', nome: 'Distrito Federal' },
+    { uf: 'ES', nome: 'Espírito Santo' },
+    { uf: 'GO', nome: 'Goiás' },
+    { uf: 'MA', nome: 'Maranhão' },
+    { uf: 'MT', nome: 'Mato Grosso' },
+    { uf: 'MS', nome: 'Mato Grosso do Sul' },
+    { uf: 'MG', nome: 'Minas Gerais' },
+    { uf: 'PA', nome: 'Pará' },
+    { uf: 'PB', nome: 'Paraíba' },
+    { uf: 'PR', nome: 'Paraná' },
+    { uf: 'PE', nome: 'Pernambuco' },
+    { uf: 'PI', nome: 'Piauí' },
+    { uf: 'RJ', nome: 'Rio de Janeiro' },
+    { uf: 'RN', nome: 'Rio Grande do Norte' },
+    { uf: 'RS', nome: 'Rio Grande do Sul' },
+    { uf: 'RO', nome: 'Rondônia' },
+    { uf: 'RR', nome: 'Roraima' },
+    { uf: 'SC', nome: 'Santa Catarina' },
+    { uf: 'SP', nome: 'São Paulo' },
+    { uf: 'SE', nome: 'Sergipe' },
+    { uf: 'TO', nome: 'Tocantins' }
+  ];
 
   const handleChange = (e) => {
     setFormData({
@@ -133,6 +170,84 @@ const Register = () => {
               />
             </div>
 
+            {formData.userType === 'ong' && (
+              <>
+                <div className="input-group">
+                  <label className="input-label">Complemento</label>
+                  <input
+                    type="text"
+                    name="complement"
+                    className="input"
+                    value={formData.complement}
+                    onChange={handleChange}
+                    placeholder="Apartamento, sala, bloco (opcional)"
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="input-group">
+                    <label className="input-label">CEP</label>
+                    <input
+                      type="text"
+                      name="cep"
+                      className="input"
+                      value={formData.cep}
+                      onChange={handleChange}
+                      placeholder="00000-000"
+                      maxLength="9"
+                    />
+                  </div>
+
+                  <div className="input-group">
+                    <label className="input-label">CNPJ</label>
+                    <input
+                      type="text"
+                      name="cnpj"
+                      className="input"
+                      value={formData.cnpj}
+                      onChange={handleChange}
+                      placeholder="00.000.000/0000-00"
+                      required={formData.userType === 'ong'}
+                      maxLength="18"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="input-group">
+                <label className="input-label">Estado</label>
+                <select
+                  name="state"
+                  className="input"
+                  value={formData.state}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="">Selecione</option>
+                  {estadosBrasileiros.map(estado => (
+                    <option key={estado.uf} value={estado.uf}>
+                      {estado.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">Cidade</label>
+                <input
+                  type="text"
+                  name="city"
+                  className="input"
+                  value={formData.city}
+                  onChange={handleChange}
+                  placeholder="Nome da cidade"
+                  required
+                />
+              </div>
+            </div>
+
             <div className="input-group">
               <label className="input-label">Senha</label>
               <input
@@ -156,10 +271,12 @@ const Register = () => {
                 onChange={handleChange}
                 required
               >
-                <option value="cliente">Cliente</option>
-                <option value="jovem">Jovem (Prestador)</option>
-                <option value="ong">ONG</option>
+                <option value="cliente">👤 Cliente - Solicitar Serviços</option>
+                <option value="ong">🏢 ONG - Gerenciar Jovens e Serviços</option>
               </select>
+              <div style={{ fontSize: '12px', color: 'var(--gray)', marginTop: '8px' }}>
+                💡 Jovens são cadastrados pelas ONGs após o registro
+              </div>
             </div>
 
             <button
