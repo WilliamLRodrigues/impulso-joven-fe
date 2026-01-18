@@ -1,20 +1,27 @@
 import React from 'react';
 
-// Função para obter URL de imagem através da API (oculta backend)
+// URL do backend
+const BACKEND_URL = 'https://impulso-jovem.onrender.com';
+const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+
+// Função para obter URL de imagem através da API
 export const getImageUrl = (imagePath) => {
   if (!imagePath) return '';
   
-  // Se já for uma URL completa, retorna como está (para compatibilidade)
+  // Se já for uma URL completa, retorna como está
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
     return imagePath;
   }
   
-  // Se começar com /uploads, mantém o caminho completo
-  // Se não começar com /, adiciona /uploads/
+  // Normaliza o caminho
   const fullPath = imagePath.startsWith('/') ? imagePath : `/uploads/${imagePath}`;
   
-  // Retorna caminho relativo - o proxy do frontend irá rotear para o backend
-  // Funciona tanto em localhost quanto em produção (via vercel.json rewrites)
+  // Em produção (Render estático não tem proxy), usa URL absoluta
+  if (isProduction) {
+    return `${BACKEND_URL}/api/assets${fullPath}`;
+  }
+  
+  // Em desenvolvimento, usa URL relativa (setupProxy.js)
   return `/api/assets${fullPath}`;
 };
 
