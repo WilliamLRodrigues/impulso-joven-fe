@@ -36,10 +36,8 @@ if (!isProduction) {
 
 const api = axios.create({
   baseURL: currentBaseURL,
-  headers: {
-    'Content-Type': 'application/json'
-  },
   timeout: 10000 // 10 segundos de timeout
+  // Removido Content-Type padrão para permitir FormData
 });
 
 // Interceptor para adicionar token em todas as requisições
@@ -49,6 +47,13 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Se não for FormData, define Content-Type como JSON
+    if (!(config.data instanceof FormData)) {
+      config.headers['Content-Type'] = 'application/json';
+    }
+    // Se for FormData, deixa o axios definir automaticamente (multipart/form-data)
+    
     return config;
   },
   (error) => {
