@@ -4,6 +4,7 @@ import BottomNav from '../../components/BottomNav';
 import Card, { CardHeader } from '../../components/Card';
 import { useAuth } from '../../contexts/AuthContext';
 import { bookingService } from '../../services';
+import api from '../../services/api';
 
 const ClienteAgendamentosCompleto = () => {
   const { user } = useAuth();
@@ -93,12 +94,30 @@ const ClienteAgendamentosCompleto = () => {
     setPhotos([]);
   };
 
-  const handlePhotoUpload = (e) => {
+  const handlePhotoUpload = async (e) => {
     const files = Array.from(e.target.files);
-    // Para simplificar, vamos apenas armazenar os nomes
-    // Em produção, você faria upload real para servidor
-    const photoUrls = files.map(f => URL.createObjectURL(f));
-    setPhotos([...photos, ...photoUrls]);
+    
+    if (files.length === 0) return;
+    
+    try {
+      // Criar FormData para upload
+      const formData = new FormData();
+      files.forEach(file => {
+        formData.append('photos', file);
+      });
+      
+      // Fazer upload das fotos
+      const response = await api.post('/upload/service-photos', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      // Adicionar URLs das fotos retornadas
+      const uploadedPhotos = response.data.photos.map(p => p.url);
+      setPhotos([...photos, ...uploadedPhotos]);
+    } catch (error) {
+      console.error('Erro ao fazer upload de fotos:', error);
+      alert('Erro ao enviar fotos. Tente novamente.');
+    }
   };
 
   const handleFinalizeService = async () => {
