@@ -2,7 +2,11 @@
   "version": 2,
   "builds": [
     {
-      "src": "package.json",
+      "src": "backend/index.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "frontend/package.json",
       "use": "@vercel/static-build",
       "config": {
         "distDir": "build"
@@ -12,14 +16,15 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "https://impulso-jovem.onrender.com/api/$1"
+      "dest": "backend/index.js"
+    },
+    {
+      "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|svg|ico|json|woff|woff2|ttf|eot))",
+      "dest": "frontend/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "/index.html"
+      "dest": "frontend/index.html"
     }
-  ],
-  "env": {
-    "REACT_APP_API_URL": "/api"
-  }
+  ]
 }
