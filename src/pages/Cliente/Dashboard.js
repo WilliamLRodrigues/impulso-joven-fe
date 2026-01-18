@@ -807,7 +807,7 @@ const ClienteDashboard = () => {
               <input
                 type="text"
                 className="input"
-                placeholder="Digite o PIN de 4 dígitos"
+                placeholder="Digite o PIN"
                 value={pinInput}
                 maxLength={4}
                 onChange={(e) => {
