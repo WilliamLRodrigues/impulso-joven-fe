@@ -9,12 +9,12 @@ export const getImageUrl = (imagePath) => {
     return imagePath;
   }
   
-  // Retorna URL relativa que será resolvida pelo proxy do frontend
   // Se começar com /uploads, mantém o caminho completo
   // Se não começar com /, adiciona /uploads/
   const fullPath = imagePath.startsWith('/') ? imagePath : `/uploads/${imagePath}`;
   
   // Retorna caminho relativo - o proxy do frontend irá rotear para o backend
+  // Funciona tanto em localhost quanto em produção (via vercel.json rewrites)
   return `/api/assets${fullPath}`;
 };
 

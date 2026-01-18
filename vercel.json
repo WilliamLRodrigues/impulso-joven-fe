@@ -12,7 +12,7 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "https://impulso-jovem-backend.onrender.com/api/$1"
+      "dest": "https://impulso-jovem.onrender.com/api/$1"
     },
     {
       "src": "/(.*)",
