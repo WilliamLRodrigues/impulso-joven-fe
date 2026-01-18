@@ -13,7 +13,7 @@ const Home = () => {
       const dashboardRoutes = {
         admin: '/admin/dashboard',
         cliente: '/cliente/dashboard',
-        jovem: '/jovem/dashboard',
+        jovem: '/jovem/servicos',
         ong: '/ong/dashboard'
       };
       const route = dashboardRoutes[user.userType];

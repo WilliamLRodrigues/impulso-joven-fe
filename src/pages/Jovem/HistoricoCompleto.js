@@ -363,6 +363,18 @@ const JovemHistoricoCompleto = () => {
                             ⭐ Avaliação: {booking.rating}/5
                           </div>
                         )}
+                        {booking.clientReview && (
+                          <div style={{ 
+                            fontSize: '12px', 
+                            color: '#2E7D32', 
+                            marginTop: '8px',
+                            paddingTop: '8px',
+                            borderTop: '1px solid #A5D6A7',
+                            fontStyle: 'italic'
+                          }}>
+                            💬 "{booking.clientReview}"
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -652,17 +664,23 @@ const JovemHistoricoCompleto = () => {
                         ⭐ Avaliação: {selectedBooking.rating}/5
                       </div>
                     )}
-                    {selectedBooking.review && (
-                      <div style={{ 
-                        fontSize: '13px', 
-                        color: '#2E7D32', 
-                        marginTop: '8px',
-                        paddingTop: '8px',
-                        borderTop: '1px solid #A5D6A7'
-                      }}>
-                        💬 {selectedBooking.review}
-                      </div>
-                    )}
+                  </div>
+                )}
+
+                {selectedBooking.clientReview && (
+                  <div style={{ 
+                    background: '#FFF9C4', 
+                    padding: '12px', 
+                    borderRadius: '8px', 
+                    marginBottom: '12px',
+                    border: '2px solid #FBC02D'
+                  }}>
+                    <div style={{ fontSize: '13px', color: '#F57F17', fontWeight: '600', marginBottom: '6px' }}>
+                      💬 Comentário do Cliente:
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#5D4037', whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
+                      {selectedBooking.clientReview}
+                    </div>
                   </div>
                 )}
 

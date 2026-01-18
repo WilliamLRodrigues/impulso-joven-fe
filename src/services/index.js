@@ -56,7 +56,8 @@ export const jovemService = {
   resetPassword: (id) => api.post(`/jovens/${id}/reset-password`),
   uploadPhoto: (formData) => api.post('/upload/photo', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
-  })
+  }),
+  addSkill: (id, category) => api.post(`/jovens/${id}/add-skill`, { category })
 };
 
 export const serviceService = {

@@ -112,9 +112,14 @@ const ClienteAgendamentosCompleto = () => {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
-      // Adicionar URLs das fotos retornadas
+      console.log('✅ Upload completo:', response.data);
+      
+      // Adicionar apenas os caminhos relativos (/uploads/...) - getImageUrl será aplicado na exibição
       const uploadedPhotos = response.data.photos.map(p => p.url);
-      setPhotos([...photos, ...uploadedPhotos]);
+      console.log('📸 Fotos carregadas:', uploadedPhotos);
+      
+      // Atualizar estado com as novas fotos
+      setPhotos(prevPhotos => [...prevPhotos, ...uploadedPhotos]);
     } catch (error) {
       console.error('Erro ao fazer upload de fotos:', error);
       alert('Erro ao enviar fotos. Tente novamente.');
@@ -827,33 +832,42 @@ const ClienteAgendamentosCompleto = () => {
                 />
                 {photos.length > 0 && (
                   <div style={{ marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    {photos.map((photo, idx) => (
-                      <div key={idx} style={{ position: 'relative', width: '80px', height: '80px' }}>
-                        <img 
-                          src={photo} 
-                          alt={`Foto ${idx + 1}`}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }}
-                        />
-                        <button
-                          onClick={() => setPhotos(photos.filter((_, i) => i !== idx))}
-                          style={{
-                            position: 'absolute',
-                            top: '-8px',
-                            right: '-8px',
-                            background: '#f44336',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '50%',
-                            width: '24px',
-                            height: '24px',
-                            cursor: 'pointer',
-                            fontSize: '12px'
-                          }}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
+                    {photos.map((photo, idx) => {
+                      const imageUrl = getImageUrl(photo);
+                      console.log(`🖼️ Preview foto ${idx + 1}:`, photo, '→', imageUrl);
+                      return (
+                        <div key={idx} style={{ position: 'relative', width: '80px', height: '80px' }}>
+                          <img 
+                            src={imageUrl} 
+                            alt={`Foto ${idx + 1}`}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }}
+                            onError={(e) => {
+                              console.error('❌ Erro ao carregar imagem:', imageUrl);
+                              e.target.style.border = '2px solid red';
+                            }}
+                            onLoad={() => console.log('✅ Imagem carregada:', imageUrl)}
+                          />
+                          <button
+                            onClick={() => setPhotos(photos.filter((_, i) => i !== idx))}
+                            style={{
+                              position: 'absolute',
+                              top: '-8px',
+                              right: '-8px',
+                              background: '#f44336',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '50%',
+                              width: '24px',
+                              height: '24px',
+                              cursor: 'pointer',
+                              fontSize: '12px'
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

@@ -28,7 +28,7 @@ const Login = () => {
           navigate('/ong/dashboard');
           break;
         case 'jovem':
-          navigate('/jovem/dashboard');
+          navigate('/jovem/servicos');
           break;
         case 'cliente':
           navigate('/cliente/dashboard');
