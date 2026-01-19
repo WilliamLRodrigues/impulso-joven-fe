@@ -76,6 +76,16 @@ const Login = () => {
       <div className="container" style={{ maxWidth: '400px', paddingTop: '60px' }}>
         <div className="card" style={{ marginTop: '20px' }}>
           <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+            <img 
+              src="/logo192.png" 
+              alt="Impulso Jovem" 
+              style={{ 
+                width: '80px', 
+                height: '80px', 
+                marginBottom: '15px',
+                borderRadius: '12px'
+              }} 
+            />
             <h1 className="text-gradient" style={{ fontSize: '32px', marginBottom: '10px' }}>
               Impulso Jovem
             </h1>

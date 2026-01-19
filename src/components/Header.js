@@ -15,7 +15,18 @@ const Header = ({ title }) => {
   return (
     <header className="header">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div className="header-title">{title || 'Impulso Jovem'}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <img 
+            src="/logo192.png" 
+            alt="Impulso Jovem" 
+            style={{ 
+              width: '36px', 
+              height: '36px', 
+              borderRadius: '8px'
+            }} 
+          />
+          <div className="header-title">{title || 'Impulso Jovem'}</div>
+        </div>
         {user && (
           <button 
             onClick={handleLogout} 
