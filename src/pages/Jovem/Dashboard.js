@@ -8,16 +8,37 @@ import { getImageUrl } from '../../utils/imageUtils';
 import api from '../../services/api';
 
 const JovemDashboard = () => {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const [jovemData, setJovemData] = useState(null);
   const [availableServices, setAvailableServices] = useState([]);
   const [myServices, setMyServices] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [pendingBookings, setPendingBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Estados para edição de perfil
+  const [activeView, setActiveView] = useState('dashboard');
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [profileData, setProfileData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    state: '',
+    city: '',
+    description: ''
+  });
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [showPasswordFields, setShowPasswordFields] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     loadData();
+    loadUserProfile();
     
     // Atualizar automaticamente a cada 10 segundos (silencioso)
     const interval = setInterval(() => {
@@ -26,6 +47,132 @@ const JovemDashboard = () => {
     
     return () => clearInterval(interval);
   }, []);
+
+  // Estados brasileiros
+  const estadosBrasileiros = [
+    { uf: 'AC', nome: 'Acre' },
+    { uf: 'AL', nome: 'Alagoas' },
+    { uf: 'AP', nome: 'Amapá' },
+    { uf: 'AM', nome: 'Amazonas' },
+    { uf: 'BA', nome: 'Bahia' },
+    { uf: 'CE', nome: 'Ceará' },
+    { uf: 'DF', nome: 'Distrito Federal' },
+    { uf: 'ES', nome: 'Espírito Santo' },
+    { uf: 'GO', nome: 'Goiás' },
+    { uf: 'MA', nome: 'Maranhão' },
+    { uf: 'MT', nome: 'Mato Grosso' },
+    { uf: 'MS', nome: 'Mato Grosso do Sul' },
+    { uf: 'MG', nome: 'Minas Gerais' },
+    { uf: 'PA', nome: 'Pará' },
+    { uf: 'PB', nome: 'Paraíba' },
+    { uf: 'PR', nome: 'Paraná' },
+    { uf: 'PE', nome: 'Pernambuco' },
+    { uf: 'PI', nome: 'Piauí' },
+    { uf: 'RJ', nome: 'Rio de Janeiro' },
+    { uf: 'RN', nome: 'Rio Grande do Norte' },
+    { uf: 'RS', nome: 'Rio Grande do Sul' },
+    { uf: 'RO', nome: 'Rondônia' },
+    { uf: 'RR', nome: 'Roraima' },
+    { uf: 'SC', nome: 'Santa Catarina' },
+    { uf: 'SP', nome: 'São Paulo' },
+    { uf: 'SE', nome: 'Sergipe' },
+    { uf: 'TO', nome: 'Tocantins' }
+  ];
+
+  const loadUserProfile = async () => {
+    try {
+      const response = await api.get(`/auth/user/${user.id}`);
+      const userData = response.data;
+      setProfileData({
+        name: userData.name || '',
+        email: userData.email || '',
+        phone: userData.phone || '',
+        address: userData.address || '',
+        state: userData.state || '',
+        city: userData.city || '',
+        description: userData.description || ''
+      });
+    } catch (error) {
+      console.error('Erro ao carregar perfil:', error);
+    }
+  };
+
+  const handleOpenEditModal = () => {
+    setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    setShowPasswordFields(false);
+    setShowEditModal(true);
+  };
+
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    
+    try {
+      // Validar senha se estiver tentando alterar
+      if (showPasswordFields) {
+        if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+          alert('Preencha todos os campos de senha');
+          setSaving(false);
+          return;
+        }
+        
+        if (passwordData.newPassword.length < 6) {
+          alert('A nova senha deve ter pelo menos 6 caracteres');
+          setSaving(false);
+          return;
+        }
+        
+        if (passwordData.newPassword !== passwordData.confirmPassword) {
+          alert('As senhas não coincidem');
+          setSaving(false);
+          return;
+        }
+      }
+      
+      // Atualizar perfil
+      await api.put(`/auth/user/${user.id}`, profileData);
+      
+      // Atualizar descrição do jovem especificamente
+      if (profileData.description !== jovemData.description) {
+        await api.put(`/jovens/${user.id}`, {
+          description: profileData.description
+        });
+      }
+      
+      // Atualizar senha se necessário
+      if (showPasswordFields && passwordData.currentPassword) {
+        try {
+          await api.put('/auth/change-password', {
+            currentPassword: passwordData.currentPassword,
+            newPassword: passwordData.newPassword
+          });
+          alert('Perfil e senha atualizados com sucesso!');
+        } catch (passwordError) {
+          alert('Perfil atualizado, mas erro ao alterar senha: ' + (passwordError.response?.data?.error || passwordError.message));
+          setSaving(false);
+          return;
+        }
+      } else {
+        alert('Perfil atualizado com sucesso!');
+      }
+      
+      // Atualizar contexto do usuário
+      setUser({ ...user, ...profileData });
+      
+      // Recarregar dados
+      await loadData();
+      
+      // Resetar campos de senha
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setShowPasswordFields(false);
+      setShowEditModal(false);
+    } catch (error) {
+      console.error('Erro ao atualizar perfil:', error);
+      alert('Erro ao atualizar perfil: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const loadData = async (silent = false) => {
     try {
@@ -133,6 +280,46 @@ const JovemDashboard = () => {
       <Header title="Dashboard Jovem" />
       
       <div className="container">
+        {/* Navegação entre Dashboard e Perfil */}
+        <Card style={{ marginTop: '20px' }}>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={() => setActiveView('dashboard')}
+              style={{
+                flex: 1,
+                padding: '12px',
+                border: activeView === 'dashboard' ? '2px solid #1976D2' : '1px solid #ddd',
+                borderRadius: '8px',
+                background: activeView === 'dashboard' ? '#E3F2FD' : 'white',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: activeView === 'dashboard' ? '600' : '400',
+                color: activeView === 'dashboard' ? '#1976D2' : '#666'
+              }}
+            >
+              📊 Dashboard
+            </button>
+            <button
+              onClick={() => setActiveView('profile')}
+              style={{
+                flex: 1,
+                padding: '12px',
+                border: activeView === 'profile' ? '2px solid #1976D2' : '1px solid #ddd',
+                borderRadius: '8px',
+                background: activeView === 'profile' ? '#E3F2FD' : 'white',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: activeView === 'profile' ? '600' : '400',
+                color: activeView === 'profile' ? '#1976D2' : '#666'
+              }}
+            >
+              👤 Meu Perfil
+            </button>
+          </div>
+        </Card>
+
+        {activeView === 'dashboard' && (
+          <>
         {/* Perfil com Foto */}
         <Card style={{ marginTop: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -471,7 +658,419 @@ const JovemDashboard = () => {
             </div>
           </Card>
         )}
+          </>
+        )}
+
+        {activeView === 'profile' && jovemData && (
+          <>
+            <Card style={{ marginTop: '20px' }}>
+              <CardHeader>👤 Meu Perfil</CardHeader>
+              <div style={{ padding: '20px' }}>
+                {/* Foto */}
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+                  {jovemData.photo ? (
+                    <img 
+                      src={getImageUrl(jovemData.photo)}
+                      alt={user.name}
+                      style={{ 
+                        width: '120px', 
+                        height: '120px', 
+                        borderRadius: '50%', 
+                        objectFit: 'cover',
+                        border: '4px solid var(--primary-blue)',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                      }}
+                    />
+                  ) : (
+                    <div style={{ 
+                      width: '120px', 
+                      height: '120px', 
+                      borderRadius: '50%', 
+                      backgroundColor: 'var(--light-gray)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '60px',
+                      border: '4px solid #ddd'
+                    }}>
+                      👤
+                    </div>
+                  )}
+                </div>
+
+                {/* Informações */}
+                <div style={{ marginBottom: '20px' }}>
+                  <div style={{ fontSize: '24px', fontWeight: '700', marginBottom: '16px', textAlign: 'center' }}>
+                    {jovemData.name}
+                  </div>
+                  
+                  <div style={{ fontSize: '14px', color: '#666', marginBottom: '8px' }}>
+                    📧 {jovemData.email}
+                  </div>
+                  <div style={{ fontSize: '14px', color: '#666', marginBottom: '8px' }}>
+                    📞 {jovemData.phone || 'Não informado'}
+                  </div>
+                  {jovemData.city && jovemData.state && (
+                    <div style={{ fontSize: '14px', color: '#666', marginBottom: '8px' }}>
+                      📍 {jovemData.city}, {jovemData.state}
+                    </div>
+                  )}
+                  {jovemData.address && (
+                    <div style={{ fontSize: '14px', color: '#666', marginBottom: '8px' }}>
+                      🏠 {jovemData.address}
+                    </div>
+                  )}
+                  
+                  {/* Descrição */}
+                  {jovemData.description && (
+                    <div style={{ 
+                      marginTop: '16px',
+                      padding: '16px',
+                      background: '#F5F5F5',
+                      borderRadius: '8px',
+                      border: '2px solid #E0E0E0'
+                    }}>
+                      <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#333' }}>
+                        📝 Minha Descrição:
+                      </div>
+                      <div style={{ fontSize: '14px', color: '#555', lineHeight: '1.6' }}>
+                        {jovemData.description}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {!jovemData.description && (
+                    <div style={{ 
+                      marginTop: '16px',
+                      padding: '16px',
+                      background: '#FFF3E0',
+                      borderRadius: '8px',
+                      border: '2px solid #FFB74D',
+                      textAlign: 'center'
+                    }}>
+                      <div style={{ fontSize: '14px', color: '#E65100' }}>
+                        💡 Adicione uma descrição para se destacar e receber mais solicitações!
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Status */}
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  padding: '16px',
+                  background: jovemData.availability ? '#E8F5E9' : '#FFEBEE',
+                  borderRadius: '8px',
+                  marginBottom: '20px'
+                }}>
+                  <div style={{ fontSize: '14px', fontWeight: '600' }}>
+                    Status de Disponibilidade:
+                  </div>
+                  <span className={`badge ${jovemData.availability ? 'badge-success' : 'badge-danger'}`}>
+                    {jovemData.availability ? '✅ Disponível' : '❌ Indisponível'}
+                  </span>
+                </div>
+
+                {/* Estatísticas */}
+                <div style={{ 
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: '12px',
+                  marginBottom: '20px'
+                }}>
+                  <div style={{ textAlign: 'center', padding: '16px', background: '#E3F2FD', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '28px', fontWeight: '700', color: '#1976D2' }}>
+                      {jovemData.stats?.completedServices || 0}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>Serviços</div>
+                  </div>
+                  <div style={{ textAlign: 'center', padding: '16px', background: '#FFF3E0', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '28px', fontWeight: '700', color: '#F57C00' }}>
+                      ⭐ {jovemData.stats?.rating?.toFixed(1) || '0.0'}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>Avaliação</div>
+                  </div>
+                  <div style={{ textAlign: 'center', padding: '16px', background: '#E8F5E9', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '28px', fontWeight: '700', color: '#388E3C' }}>
+                      {jovemData.stats?.points || 0}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>Pontos</div>
+                  </div>
+                </div>
+
+                <button
+                  className="btn btn-primary btn-full"
+                  onClick={handleOpenEditModal}
+                  style={{
+                    background: 'var(--gradient)',
+                    color: 'white',
+                    border: 'none'
+                  }}
+                >
+                  ✏️ Editar Perfil e Descrição
+                </button>
+              </div>
+            </Card>
+          </>
+        )}
       </div>
+
+      {/* Modal de Edição de Perfil */}
+      {showEditModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}>
+          <Card style={{ maxWidth: '500px', width: '100%', maxHeight: 'calc(100vh - 140px)', overflow: 'auto' }}>
+            <CardHeader>✏️ Editar Meu Perfil</CardHeader>
+            <form onSubmit={handleSaveProfile}>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#333' }}>
+                  Nome Completo *
+                </label>
+                <input
+                  type="text"
+                  className="input"
+                  value={profileData.name}
+                  onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
+                  required
+                  placeholder="Seu nome completo"
+                />
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#333' }}>
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  className="input"
+                  value={profileData.email}
+                  onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
+                  required
+                  placeholder="seu@email.com"
+                />
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#333' }}>
+                  Telefone *
+                </label>
+                <input
+                  type="tel"
+                  className="input"
+                  value={profileData.phone}
+                  onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
+                  required
+                  placeholder="(11) 98765-4321"
+                />
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#333' }}>
+                  Endereço
+                </label>
+                <textarea
+                  className="input"
+                  value={profileData.address}
+                  onChange={(e) => setProfileData({ ...profileData, address: e.target.value })}
+                  rows="2"
+                  placeholder="Rua, número, bairro"
+                  style={{ resize: 'vertical' }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#333' }}>
+                    Estado *
+                  </label>
+                  <select
+                    className="input"
+                    value={profileData.state}
+                    onChange={(e) => setProfileData({ ...profileData, state: e.target.value })}
+                    required
+                    style={{ padding: '10px' }}
+                  >
+                    <option value="">Selecione</option>
+                    {estadosBrasileiros.map(estado => (
+                      <option key={estado.uf} value={estado.uf}>
+                        {estado.nome} ({estado.uf})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#333' }}>
+                    Cidade *
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={profileData.city}
+                    onChange={(e) => setProfileData({ ...profileData, city: e.target.value })}
+                    required
+                    placeholder="Nome da cidade"
+                  />
+                </div>
+              </div>
+
+              {/* Campo de Descrição */}
+              <div style={{ 
+                marginBottom: '16px',
+                padding: '16px',
+                background: '#E3F2FD',
+                borderRadius: '8px',
+                border: '2px solid #1976D2'
+              }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#1565C0' }}>
+                  📝 Sua Descrição Profissional
+                </label>
+                <textarea
+                  className="input"
+                  value={profileData.description}
+                  onChange={(e) => setProfileData({ ...profileData, description: e.target.value })}
+                  rows="4"
+                  placeholder="Conte um pouco sobre você, suas habilidades e experiências..."
+                  style={{ resize: 'vertical', marginBottom: '8px' }}
+                />
+                <div style={{ fontSize: '12px', color: '#1565C0', lineHeight: '1.5' }}>
+                  💡 <strong>Dica:</strong> Uma boa descrição ajuda clientes a conhecerem melhor seu trabalho e aumenta suas chances de ser escolhido!
+                </div>
+              </div>
+
+              <div style={{ fontSize: '12px', color: 'var(--gray)', marginBottom: '16px' }}>
+                ℹ️ Mantenha seus dados atualizados para facilitar o contato
+              </div>
+
+              {/* Seção de Alteração de Senha */}
+              <div style={{ 
+                borderTop: '2px solid #f0f0f0', 
+                paddingTop: '16px', 
+                marginTop: '16px',
+                marginBottom: '16px'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordFields(!showPasswordFields)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#1976D2',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 0',
+                    width: '100%',
+                    justifyContent: 'space-between'
+                  }}
+                >
+                  <span>🔐 Alterar Senha</span>
+                  <span>{showPasswordFields ? '▲' : '▼'}</span>
+                </button>
+
+                {showPasswordFields && (
+                  <div style={{ marginTop: '16px', paddingLeft: '8px' }}>
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#333' }}>
+                        Senha Atual *
+                      </label>
+                      <input
+                        type="password"
+                        className="input"
+                        value={passwordData.currentPassword}
+                        onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                        placeholder="Digite sua senha atual"
+                      />
+                    </div>
+
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#333' }}>
+                        Nova Senha * (mínimo 6 caracteres)
+                      </label>
+                      <input
+                        type="password"
+                        className="input"
+                        value={passwordData.newPassword}
+                        onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                        placeholder="Digite a nova senha"
+                      />
+                    </div>
+
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#333' }}>
+                        Confirmar Nova Senha *
+                      </label>
+                      <input
+                        type="password"
+                        className="input"
+                        value={passwordData.confirmPassword}
+                        onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                        placeholder="Digite novamente a nova senha"
+                      />
+                      {passwordData.newPassword && passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword && (
+                        <div style={{ fontSize: '12px', color: '#f44336', marginTop: '4px' }}>
+                          ⚠️ As senhas não coincidem
+                        </div>
+                      )}
+                      {passwordData.newPassword && passwordData.newPassword.length < 6 && (
+                        <div style={{ fontSize: '12px', color: '#f44336', marginTop: '4px' }}>
+                          ⚠️ A senha deve ter pelo menos 6 caracteres
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ 
+                      background: '#E3F2FD', 
+                      padding: '12px', 
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      color: '#1976D2'
+                    }}>
+                      ℹ️ <strong>Dica:</strong> Use uma senha forte com letras, números e símbolos
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowEditModal(false)}
+                  style={{ flex: 1 }}
+                  disabled={saving}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{ flex: 1, background: 'var(--gradient)', border: 'none' }}
+                  disabled={saving}
+                >
+                  {saving ? '💾 Salvando...' : '💾 Salvar'}
+                </button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
 
       <BottomNav />
     </div>

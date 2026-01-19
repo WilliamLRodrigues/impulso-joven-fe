@@ -264,7 +264,7 @@ const ClienteServicos = () => {
                       <div>
                         <div style={{ fontSize: '12px', color: 'var(--gray)' }}>Valor</div>
                         <div style={{ fontWeight: '700', fontSize: '18px', color: 'var(--primary-green)' }}>
-                          R$ {service.price || '50,00'}
+                          R$ {typeof service.price === 'number' ? service.price.toFixed(2) : (service.price || '50,00')}
                         </div>
                       </div>
                       <div>
@@ -361,7 +361,7 @@ const ClienteServicos = () => {
                 {selectedService.description}
               </div>
               <div style={{ fontSize: '16px', fontWeight: '700', color: 'var(--primary-green)' }}>
-                R$ {selectedService.price || '50,00'} • {selectedService.duration || 2}h
+                R$ {typeof selectedService.price === 'number' ? selectedService.price.toFixed(2) : '50,00'} • {selectedService.duration || 2}h
               </div>
             </div>
 

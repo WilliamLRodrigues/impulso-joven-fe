@@ -27,6 +27,12 @@ const ClienteDashboard = () => {
     state: '',
     city: ''
   });
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [showPasswordFields, setShowPasswordFields] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // PIN Modal
@@ -121,6 +127,9 @@ const ClienteDashboard = () => {
   };
 
   const handleOpenEditModal = () => {
+    // Resetar campos de senha ao abrir o modal
+    setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    setShowPasswordFields(false);
     setShowEditModal(true);
   };
 
@@ -129,12 +138,53 @@ const ClienteDashboard = () => {
     setSaving(true);
     
     try {
+      // Validar senha se estiver tentando alterar
+      if (showPasswordFields) {
+        if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+          alert('Preencha todos os campos de senha');
+          setSaving(false);
+          return;
+        }
+        
+        if (passwordData.newPassword.length < 6) {
+          alert('A nova senha deve ter pelo menos 6 caracteres');
+          setSaving(false);
+          return;
+        }
+        
+        if (passwordData.newPassword !== passwordData.confirmPassword) {
+          alert('As senhas não coincidem');
+          setSaving(false);
+          return;
+        }
+      }
+      
+      // Atualizar perfil
       await api.put(`/auth/user/${user.id}`, profileData);
+      
+      // Atualizar senha se necessário
+      if (showPasswordFields && passwordData.currentPassword) {
+        try {
+          await api.put('/auth/change-password', {
+            currentPassword: passwordData.currentPassword,
+            newPassword: passwordData.newPassword
+          });
+          alert('Perfil e senha atualizados com sucesso!');
+        } catch (passwordError) {
+          alert('Perfil atualizado, mas erro ao alterar senha: ' + (passwordError.response?.data?.error || passwordError.message));
+          setSaving(false);
+          return;
+        }
+      } else {
+        alert('Perfil atualizado com sucesso!');
+      }
       
       // Atualizar contexto do usuário
       setUser({ ...user, ...profileData });
       
-      alert('Perfil atualizado com sucesso!');
+      // Resetar campos de senha
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setShowPasswordFields(false);
       setShowEditModal(false);
     } catch (error) {
       console.error('Erro ao atualizar perfil:', error);
@@ -756,6 +806,99 @@ const ClienteDashboard = () => {
 
               <div style={{ fontSize: '12px', color: 'var(--gray)', marginBottom: '16px' }}>
                 ℹ️ Você poderá solicitar serviços de jovens da sua cidade/estado
+              </div>
+
+              {/* Seção de Alteração de Senha */}
+              <div style={{ 
+                borderTop: '2px solid #f0f0f0', 
+                paddingTop: '16px', 
+                marginTop: '16px',
+                marginBottom: '16px'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordFields(!showPasswordFields)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#1976D2',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 0',
+                    width: '100%',
+                    justifyContent: 'space-between'
+                  }}
+                >
+                  <span>🔐 Alterar Senha</span>
+                  <span>{showPasswordFields ? '▲' : '▼'}</span>
+                </button>
+
+                {showPasswordFields && (
+                  <div style={{ marginTop: '16px', paddingLeft: '8px' }}>
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#333' }}>
+                        Senha Atual *
+                      </label>
+                      <input
+                        type="password"
+                        className="input"
+                        value={passwordData.currentPassword}
+                        onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                        placeholder="Digite sua senha atual"
+                      />
+                    </div>
+
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#333' }}>
+                        Nova Senha * (mínimo 6 caracteres)
+                      </label>
+                      <input
+                        type="password"
+                        className="input"
+                        value={passwordData.newPassword}
+                        onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                        placeholder="Digite a nova senha"
+                      />
+                    </div>
+
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#333' }}>
+                        Confirmar Nova Senha *
+                      </label>
+                      <input
+                        type="password"
+                        className="input"
+                        value={passwordData.confirmPassword}
+                        onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                        placeholder="Digite novamente a nova senha"
+                      />
+                      {passwordData.newPassword && passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword && (
+                        <div style={{ fontSize: '12px', color: '#f44336', marginTop: '4px' }}>
+                          ⚠️ As senhas não coincidem
+                        </div>
+                      )}
+                      {passwordData.newPassword && passwordData.newPassword.length < 6 && (
+                        <div style={{ fontSize: '12px', color: '#f44336', marginTop: '4px' }}>
+                          ⚠️ A senha deve ter pelo menos 6 caracteres
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ 
+                      background: '#E3F2FD', 
+                      padding: '12px', 
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      color: '#1976D2'
+                    }}>
+                      ℹ️ <strong>Dica:</strong> Use uma senha forte com letras, números e símbolos
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'flex', gap: '12px' }}>

@@ -3,11 +3,15 @@ import Header from '../../components/Header';
 import BottomNav from '../../components/BottomNav';
 import Card, { CardHeader } from '../../components/Card';
 import { serviceService } from '../../services';
+import api from '../../services/api';
 
 const AdminServicos = () => {
   const [services, setServices] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [profitMargin, setProfitMargin] = useState(0);
+  const [savingMargin, setSavingMargin] = useState(false);
+  const [marginMessage, setMarginMessage] = useState('');
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -30,6 +34,7 @@ const AdminServicos = () => {
 
   useEffect(() => {
     loadServices();
+    loadProfitMargin();
   }, []);
 
   const loadServices = async () => {
@@ -41,6 +46,36 @@ const AdminServicos = () => {
       alert('Erro ao carregar serviços');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadProfitMargin = async () => {
+    try {
+      const response = await api.get('/admin/profit-margin');
+      setProfitMargin(response.data.profitMargin || 0);
+    } catch (error) {
+      console.error('Erro ao carregar margem:', error);
+    }
+  };
+
+  const handleSaveMargin = async () => {
+    if (profitMargin < 0 || profitMargin > 100) {
+      setMarginMessage('❌ Margem deve ser entre 0 e 100%');
+      setTimeout(() => setMarginMessage(''), 3000);
+      return;
+    }
+
+    try {
+      setSavingMargin(true);
+      await api.put('/admin/profit-margin', { profitMargin: parseFloat(profitMargin) });
+      setMarginMessage('✅ Margem atualizada com sucesso!');
+      setTimeout(() => setMarginMessage(''), 3000);
+    } catch (error) {
+      console.error('Erro ao salvar margem:', error);
+      setMarginMessage('❌ Erro ao atualizar margem');
+      setTimeout(() => setMarginMessage(''), 3000);
+    } finally {
+      setSavingMargin(false);
     }
   };
 
@@ -97,6 +132,98 @@ const AdminServicos = () => {
       <Header title="Gerenciar Serviços" showBack />
       
       <div className="container">
+        {/* Configuração de Margem de Lucro */}
+        <Card style={{ marginTop: '20px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
+          <CardHeader style={{ borderBottom: '1px solid rgba(255,255,255,0.2)', color: 'white' }}>
+            💰 Margem de Lucro da Plataforma
+          </CardHeader>
+          <div style={{ padding: '20px' }}>
+            <p style={{ fontSize: '14px', opacity: '0.9', marginBottom: '15px', lineHeight: '1.5' }}>
+              Configure a porcentagem de lucro que será adicionada ao preço de <strong>TODOS os serviços</strong>.<br/>
+              Exemplo: Serviço de R$ 100 + margem de 20% = R$ 120 para o cliente.
+            </p>
+            
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' }}>
+                  Margem de Lucro (%)
+                </label>
+                <input
+                  type="number"
+                  value={profitMargin}
+                  onChange={(e) => setProfitMargin(e.target.value)}
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    fontSize: '18px',
+                    fontWeight: 'bold',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    borderRadius: '8px',
+                    boxSizing: 'border-box',
+                    background: 'rgba(255,255,255,0.2)',
+                    color: 'white',
+                    textAlign: 'center'
+                  }}
+                  placeholder="0"
+                />
+                <small style={{ fontSize: '12px', opacity: '0.8', display: 'block', marginTop: '4px' }}>
+                  Digite um valor entre 0 e 100
+                </small>
+              </div>
+              
+              <button
+                onClick={handleSaveMargin}
+                disabled={savingMargin}
+                style={{
+                  padding: '12px 24px',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  background: savingMargin ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.9)',
+                  color: '#667eea',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: savingMargin ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {savingMargin ? '💾 Salvando...' : '💾 Salvar'}
+              </button>
+            </div>
+
+            <div style={{
+              marginTop: '15px',
+              padding: '12px',
+              background: 'rgba(255,255,255,0.15)',
+              borderRadius: '8px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <span style={{ fontSize: '14px' }}>Exemplo de cálculo:</span>
+              <span style={{ fontSize: '18px', fontWeight: 'bold' }}>
+                R$ 100 → R$ {(100 + (100 * profitMargin / 100)).toFixed(2)}
+              </span>
+            </div>
+
+            {marginMessage && (
+              <div style={{
+                marginTop: '12px',
+                padding: '10px',
+                background: 'rgba(255,255,255,0.2)',
+                borderRadius: '8px',
+                textAlign: 'center',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}>
+                {marginMessage}
+              </div>
+            )}
+          </div>
+        </Card>
+
         {/* Botão Adicionar */}
         <button 
           className="btn btn-primary btn-full"
