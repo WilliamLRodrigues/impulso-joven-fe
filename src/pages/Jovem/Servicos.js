@@ -3,8 +3,35 @@ import Header from '../../components/Header';
 import BottomNav from '../../components/BottomNav';
 import Card, { CardHeader } from '../../components/Card';
 import { useAuth } from '../../contexts/AuthContext';
-import { bookingService } from '../../services';
+import { bookingService, jovemService } from '../../services';
 import { getImageUrl, downloadImage } from '../../utils/imageUtils';
+import { resolveTrainingModuleKey } from '../../modules/treinamento';
+import TrainingModal from '../../components/TrainingModal';
+
+const getGoogleMapsUrl = (destination, origin) => {
+  if (!destination) {
+    return 'https://www.google.com/maps';
+  }
+
+  const params = new URLSearchParams({
+    api: '1',
+    destination: destination.trim(),
+  });
+
+  if (origin) {
+    params.set('origin', origin.trim());
+  }
+
+  return `https://www.google.com/maps/dir/?${params.toString()}`;
+};
+
+const getSimpleMapUrl = (address) => {
+  if (!address) {
+    return '';
+  }
+
+  return `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`;
+};
 
 const JovemServicos = () => {
   const { user } = useAuth();
@@ -22,18 +49,50 @@ const JovemServicos = () => {
   // Modal de Feedback
   const [feedbackModal, setFeedbackModal] = useState({ show: false, type: '', message: '' });
 
+  // Treinamentos obrigatórios
+  const [trainingCompletion, setTrainingCompletion] = useState({});
+  const [showTrainingModal, setShowTrainingModal] = useState(false);
+  const [trainingModuleKey, setTrainingModuleKey] = useState(null);
+
   useEffect(() => {
     loadPendingBookings();
     loadAcceptedBookings();
-    
-    // Atualizar automaticamente a cada 10 segundos (silencioso)
+
     const interval = setInterval(() => {
-      loadPendingBookings(true); // true = atualização silenciosa
+      loadPendingBookings(true);
       loadAcceptedBookings(true);
     }, 10000);
-    
+
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+
+    const loadTrainingProgress = async () => {
+      try {
+        const jovemResponse = await jovemService.getById(user.id);
+        const backendProgress = jovemResponse.data?.trainingCompletion;
+        if (backendProgress && typeof backendProgress === 'object') {
+          setTrainingCompletion(backendProgress);
+        } else {
+          setTrainingCompletion({});
+        }
+      } catch (error) {
+        console.error('Erro ao carregar progresso do servidor:', error);
+      }
+    };
+
+    loadTrainingProgress();
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+  }, [user?.id]);
 
   const loadPendingBookings = async (silent = false) => {
     try {
@@ -50,9 +109,8 @@ const JovemServicos = () => {
   const loadAcceptedBookings = async (silent = false) => {
     try {
       const response = await bookingService.getAll({ jovemId: user.id });
-      // Filtrar apenas confirmados e em andamento
-      const accepted = response.data.filter(b => 
-        b.status === 'confirmed' || b.status === 'in_progress' || b.status === 'checked_in'
+      const accepted = response.data.filter(
+        (b) => b.status === 'confirmed' || b.status === 'in_progress' || b.status === 'checked_in'
       );
       setAcceptedBookings(accepted);
     } catch (error) {
@@ -60,21 +118,59 @@ const JovemServicos = () => {
     }
   };
 
-  const getGoogleMapsUrl = (clientAddress, jovemAddress) => {
-    const origin = encodeURIComponent(jovemAddress || 'Minha localização');
-    const destination = encodeURIComponent(clientAddress);
-    return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`;
+  const handleOpenTrainingModal = (moduleKey) => {
+    if (!moduleKey) return;
+    setTrainingModuleKey(moduleKey);
+    setShowTrainingModal(true);
+    setShowModal(false);
   };
 
-  const getEmbedMapUrl = (clientAddress) => {
-    const address = encodeURIComponent(clientAddress);
-    return `https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dN5QiVZoFQ&q=${address}&zoom=15`;
+  const handleCloseTrainingModal = () => {
+    setShowTrainingModal(false);
+    setTrainingModuleKey(null);
+    if (selectedBooking) {
+      setShowModal(true);
+    }
   };
 
-  // Versão sem API key - usa iframe simples
-  const getSimpleMapUrl = (clientAddress) => {
-    const address = encodeURIComponent(clientAddress);
-    return `https://maps.google.com/maps?q=${address}&output=embed`;
+  const getModuleKeyForBooking = (booking) => {
+    if (!booking) return null;
+    return resolveTrainingModuleKey(booking.serviceName || '', booking.serviceCategory || '');
+  };
+
+  const handleAttemptAcceptService = () => {
+    if (!selectedBooking) return;
+    const moduleKey = getModuleKeyForBooking(selectedBooking);
+    if (moduleKey && !trainingCompletion?.[moduleKey]) {
+      handleOpenTrainingModal(moduleKey);
+      return;
+    }
+    handleConfirmServiceAcceptance();
+  };
+
+  const handleTrainingComplete = (completedModuleKey) => {
+    const moduleKeyToMark = completedModuleKey || trainingModuleKey;
+    if (!moduleKeyToMark) {
+      return;
+    }
+
+    setTrainingCompletion((prev) => {
+      if (prev?.[moduleKeyToMark]) {
+        return prev;
+      }
+      const nextState = { ...prev, [moduleKeyToMark]: true };
+      jovemService.update(user.id, { trainingCompletion: nextState }).catch((error) => {
+        console.error('Erro ao salvar progresso de treinamento:', error);
+      });
+      return nextState;
+    });
+
+    setShowTrainingModal(false);
+    setTrainingModuleKey(null);
+
+    if (selectedBooking) {
+      handleConfirmServiceAcceptance();
+    }
   };
 
   const handleViewDetails = (booking) => {
@@ -87,7 +183,7 @@ const JovemServicos = () => {
     setShowDetailsModal(true);
   };
 
-  const handleAcceptBooking = async () => {
+  const handleConfirmServiceAcceptance = async () => {
     if (!selectedBooking) return;
     
     try {
@@ -633,7 +729,7 @@ const JovemServicos = () => {
               <button 
                 className="btn btn-primary"
                 style={{ flex: 1 }}
-                onClick={handleAcceptBooking}
+                onClick={handleAttemptAcceptService}
               >
                 ✓ Aceitar Serviço
               </button>
@@ -900,6 +996,14 @@ const JovemServicos = () => {
           </Card>
         </div>
       )}
+
+      <TrainingModal
+        isOpen={showTrainingModal}
+        moduleKey={trainingModuleKey}
+        onClose={handleCloseTrainingModal}
+        onComplete={handleTrainingComplete}
+        successActionLabel="Concluir e Aceitar Serviço"
+      />
 
       {/* Modal de Detalhes de Serviço Aceito */}
       {showDetailsModal && selectedBooking && (

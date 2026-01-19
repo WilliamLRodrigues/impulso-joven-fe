@@ -6,6 +6,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { jovemService, serviceService, bookingService } from '../../services';
 import { getImageUrl } from '../../utils/imageUtils';
 import api from '../../services/api';
+import { resolveTrainingModuleKey, getTrainingModule } from '../../modules/treinamento';
+import TrainingModal from '../../components/TrainingModal';
 
 const JovemDashboard = () => {
   const { user, setUser } = useAuth();
@@ -15,6 +17,10 @@ const JovemDashboard = () => {
   const [bookings, setBookings] = useState([]);
   const [pendingBookings, setPendingBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [trainingCompletion, setTrainingCompletion] = useState({});
+  const [trainingModalOpen, setTrainingModalOpen] = useState(false);
+  const [trainingModalKey, setTrainingModalKey] = useState(null);
+  const [trainingMessage, setTrainingMessage] = useState(null);
   
   // Estados para edição de perfil
   const [activeView, setActiveView] = useState('dashboard');
@@ -47,6 +53,13 @@ const JovemDashboard = () => {
     
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+    setTrainingCompletion({});
+  }, [user?.id]);
 
   // Estados brasileiros
   const estadosBrasileiros = [
@@ -191,6 +204,13 @@ const JovemDashboard = () => {
       }
       
       setJovemData(jovemDataResult);
+
+      const backendProgress = jovemDataResult?.trainingCompletion;
+      if (backendProgress && typeof backendProgress === 'object') {
+        setTrainingCompletion(backendProgress);
+      } else {
+        setTrainingCompletion({});
+      }
       
       const currentSkills = jovemDataResult.skills || [];
 
@@ -274,6 +294,58 @@ const JovemDashboard = () => {
       </div>
     );
   }
+
+  const skillsWithTraining = (jovemData?.skills || []).map((skill) => {
+    const moduleKey = resolveTrainingModuleKey(skill || '', skill || '');
+    const module = moduleKey ? getTrainingModule(moduleKey) : null;
+    return {
+      skill,
+      moduleKey,
+      module,
+      completed: moduleKey ? Boolean(trainingCompletion[moduleKey]) : true,
+    };
+  });
+
+  const hasPendingTraining = skillsWithTraining.some((item) => item.moduleKey && !item.completed);
+
+  const handleOpenTrainingModule = (moduleKey) => {
+    if (!moduleKey) {
+      setTrainingMessage('Conteúdo de treinamento em atualização. Avise o suporte.');
+      return;
+    }
+    setTrainingMessage(null);
+    setTrainingModalKey(moduleKey);
+    setTrainingModalOpen(true);
+  };
+
+  const handleCloseTrainingModule = () => {
+    setTrainingModalOpen(false);
+    setTrainingModalKey(null);
+  };
+
+  const handleTrainingModuleComplete = (moduleKey) => {
+    const resolvedKey = moduleKey || trainingModalKey;
+    if (!resolvedKey) {
+      return;
+    }
+
+    setTrainingCompletion((prev) => {
+      if (prev?.[resolvedKey]) {
+        return prev;
+      }
+      const nextState = { ...prev, [resolvedKey]: true };
+      jovemService.update(user.id, { trainingCompletion: nextState }).catch((error) => {
+        console.error('Erro ao salvar progresso de treinamento:', error);
+      });
+      return nextState;
+    });
+
+    setTrainingMessage('Treinamento concluído! Agora novos serviços dessa categoria podem ser encaminhados para você.');
+    setTrainingModalOpen(false);
+    setTrainingModalKey(null);
+  };
+
+  const dismissTrainingMessage = () => setTrainingMessage(null);
 
   return (
     <div style={{ paddingBottom: '80px' }}>
@@ -619,32 +691,105 @@ const JovemDashboard = () => {
         </Card>
 
         {/* Skills - Mostrar categorias de serviços */}
-        {jovemData?.skills && jovemData.skills.length > 0 && (
+        {skillsWithTraining.length > 0 && (
           <Card style={{ marginTop: '20px' }}>
             <CardHeader>🎯 Minhas Habilidades de Serviço</CardHeader>
+            {trainingMessage && (
+              <div style={{
+                marginTop: '8px',
+                padding: '12px',
+                background: '#E8F5E9',
+                borderRadius: '8px',
+                border: '1px solid #66BB6A',
+                color: '#1B5E20',
+                fontSize: '13px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                <span>{trainingMessage}</span>
+                <button
+                  className="btn btn-secondary"
+                  style={{ minWidth: '100px' }}
+                  onClick={dismissTrainingMessage}
+                >
+                  Entendi
+                </button>
+              </div>
+            )}
             <div style={{ 
               display: 'grid', 
               gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
               gap: '12px',
               padding: '8px 0'
             }}>
-              {jovemData.skills.map((skill, index) => (
-                <div 
-                  key={index}
-                  style={{
-                    padding: '12px',
-                    background: 'var(--gradient)',
-                    color: 'white',
-                    borderRadius: '8px',
-                    textAlign: 'center',
-                    fontWeight: '600',
-                    fontSize: '14px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                  }}
-                >
-                  {skill}
-                </div>
-              ))}
+              {skillsWithTraining.map(({ skill, moduleKey, completed, module }, index) => {
+                const statusLabel = completed ? 'Treinamento concluído' : 'Treinamento pendente';
+                const statusColor = completed ? '#C8E6C9' : '#FFE0B2';
+                const statusTextColor = completed ? '#1B5E20' : '#8D6E63';
+                const badgeEmoji = completed ? '✅' : '🔒';
+                const descriptionText = completed
+                  ? 'Pronto para aceitar serviços desta categoria.'
+                  : 'Finalize o treinamento correspondente para liberar novos serviços.';
+
+                return (
+                  <div 
+                    key={index}
+                    style={{
+                      padding: '12px',
+                      background: completed ? 'var(--gradient)' : '#F5F5F5',
+                      color: completed ? 'white' : '#37474F',
+                      borderRadius: '8px',
+                      textAlign: 'left',
+                      fontSize: '13px',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px'
+                    }}
+                  >
+                    <div style={{ fontWeight: '700', fontSize: '14px' }}>
+                      {skill}
+                    </div>
+                    {module && (
+                      <div style={{
+                        background: statusColor,
+                        color: statusTextColor,
+                        borderRadius: '6px',
+                        padding: '6px 8px',
+                        fontWeight: '600',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontSize: '12px'
+                      }}>
+                        <span>{badgeEmoji}</span>
+                        <span>{statusLabel}</span>
+                      </div>
+                    )}
+                    <div style={{ fontSize: '12px', lineHeight: '1.5', opacity: completed ? 0.9 : 1 }}>
+                      {descriptionText}
+                    </div>
+                    {module && (
+                      <button
+                        className="btn btn-secondary"
+                        style={{
+                          marginTop: 'auto',
+                          fontSize: '12px',
+                          padding: '8px',
+                          background: completed ? 'rgba(255,255,255,0.2)' : '#E0E0E0',
+                          color: completed ? 'white' : '#424242',
+                          border: completed ? '1px solid rgba(255,255,255,0.4)' : '1px solid #B0BEC5'
+                        }}
+                        onClick={() => handleOpenTrainingModule(moduleKey)}
+                      >
+                        {completed ? 'Rever Treinamento' : 'Fazer Treinamento'}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
             <div style={{ 
               marginTop: '12px',
@@ -654,7 +799,9 @@ const JovemDashboard = () => {
               fontSize: '13px',
               color: '#1565C0'
             }}>
-              💡 Estas são as categorias de serviços que você está habilitado a realizar
+              {hasPendingTraining
+                ? '💡 Existe treinamento pendente. Conclua os módulos para liberar todas as categorias com segurança.'
+                : '💡 Todas as categorias listadas estão liberadas para você aceitar novos serviços com confiança.'}
             </div>
           </Card>
         )}
@@ -1071,6 +1218,14 @@ const JovemDashboard = () => {
           </Card>
         </div>
       )}
+
+      <TrainingModal
+        isOpen={trainingModalOpen}
+        moduleKey={trainingModalKey}
+        onClose={handleCloseTrainingModule}
+        onComplete={handleTrainingModuleComplete}
+        successActionLabel="Concluir Treinamento"
+      />
 
       <BottomNav />
     </div>
