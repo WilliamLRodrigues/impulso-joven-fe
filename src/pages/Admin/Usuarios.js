@@ -20,7 +20,14 @@ const AdminUsuarios = () => {
     password: '',
     userType: 'cliente',
     phone: '',
-    address: ''
+    address: '',
+    country: 'Brasil',
+    state: '',
+    city: '',
+    birthDate: '',
+    cpf: '',
+    rg: '',
+    description: ''
   });
 
   useEffect(() => {
@@ -51,7 +58,14 @@ const AdminUsuarios = () => {
         password: '',
         userType: 'cliente',
         phone: '',
-        address: ''
+        address: '',
+        country: 'Brasil',
+        state: '',
+        city: '',
+        birthDate: '',
+        cpf: '',
+        rg: '',
+        description: ''
       });
       loadUsers();
     } catch (error) {
@@ -76,7 +90,14 @@ const AdminUsuarios = () => {
         password: '',
         userType: 'cliente',
         phone: '',
-        address: ''
+        address: '',
+        country: 'Brasil',
+        state: '',
+        city: '',
+        birthDate: '',
+        cpf: '',
+        rg: '',
+        description: ''
       });
       setSelectedUser(null);
       loadUsers();
@@ -126,7 +147,14 @@ const AdminUsuarios = () => {
       password: '',
       userType: user.userType,
       phone: user.phone || '',
-      address: user.address || ''
+      address: user.address || '',
+      country: user.country || 'Brasil',
+      state: user.state || '',
+      city: user.city || '',
+      birthDate: user.birthDate || '',
+      cpf: user.cpf || '',
+      rg: user.rg || '',
+      description: user.description || ''
     });
     setShowEditModal(true);
   };
@@ -397,7 +425,8 @@ const AdminUsuarios = () => {
               padding: '24px',
               maxWidth: '500px',
               width: '100%',
-              maxHeight: '90vh',
+              marginTop: '-12px',
+              maxHeight: 'calc(100vh - 160px)',
               overflow: 'auto'
             }}>
               <h2 style={{ marginBottom: '20px', fontSize: '20px' }}>➕ Criar Novo Usuário</h2>
@@ -464,6 +493,68 @@ const AdminUsuarios = () => {
                     onChange={(e) => setFormData({...formData, address: e.target.value})}
                   />
                 </div>
+                {formData.userType === 'jovem' && (
+                  <>
+                    <div style={{ marginBottom: '16px' }}>
+                      <label className="label">Data de Nascimento</label>
+                      <input
+                        type="date"
+                        className="input"
+                        value={formData.birthDate}
+                        onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                      />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                      <div>
+                        <label className="label">CPF</label>
+                        <input
+                          type="text"
+                          className="input"
+                          value={formData.cpf}
+                          onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="label">RG</label>
+                        <input
+                          type="text"
+                          className="input"
+                          value={formData.rg}
+                          onChange={(e) => setFormData({ ...formData, rg: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                      <div>
+                        <label className="label">Estado</label>
+                        <input
+                          type="text"
+                          className="input"
+                          value={formData.state}
+                          onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="label">Cidade</label>
+                        <input
+                          type="text"
+                          className="input"
+                          value={formData.city}
+                          onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: '16px' }}>
+                      <label className="label">Descrição</label>
+                      <textarea
+                        className="input"
+                        rows="3"
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      />
+                    </div>
+                  </>
+                )}
                 <div style={{ display: 'flex', gap: '12px' }}>
                   <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
                     Criar Usuário
@@ -503,7 +594,8 @@ const AdminUsuarios = () => {
               padding: '24px',
               maxWidth: '500px',
               width: '100%',
-              maxHeight: '90vh',
+              marginTop: '-12px',
+              maxHeight: 'calc(100vh - 160px)',
               overflow: 'auto'
             }}>
               <h2 style={{ marginBottom: '20px', fontSize: '20px' }}>✏️ Editar Usuário</h2>
@@ -569,6 +661,68 @@ const AdminUsuarios = () => {
                     onChange={(e) => setFormData({...formData, address: e.target.value})}
                   />
                 </div>
+                {formData.userType === 'jovem' && (
+                  <>
+                    <div style={{ marginBottom: '16px' }}>
+                      <label className="label">Data de Nascimento</label>
+                      <input
+                        type="date"
+                        className="input"
+                        value={formData.birthDate}
+                        onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                      />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                      <div>
+                        <label className="label">CPF</label>
+                        <input
+                          type="text"
+                          className="input"
+                          value={formData.cpf}
+                          onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="label">RG</label>
+                        <input
+                          type="text"
+                          className="input"
+                          value={formData.rg}
+                          onChange={(e) => setFormData({ ...formData, rg: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                      <div>
+                        <label className="label">Estado</label>
+                        <input
+                          type="text"
+                          className="input"
+                          value={formData.state}
+                          onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="label">Cidade</label>
+                        <input
+                          type="text"
+                          className="input"
+                          value={formData.city}
+                          onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: '16px' }}>
+                      <label className="label">Descrição</label>
+                      <textarea
+                        className="input"
+                        rows="3"
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      />
+                    </div>
+                  </>
+                )}
                 <div style={{ display: 'flex', gap: '12px' }}>
                   <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
                     Salvar Alterações
@@ -608,7 +762,8 @@ const AdminUsuarios = () => {
               padding: '24px',
               maxWidth: '500px',
               width: '100%',
-              maxHeight: '90vh',
+              marginTop: '-12px',
+              maxHeight: 'calc(100vh - 160px)',
               overflow: 'auto'
             }}>
               <h2 style={{ marginBottom: '20px', fontSize: '20px' }}>👤 Detalhes do Usuário</h2>
@@ -632,6 +787,35 @@ const AdminUsuarios = () => {
                 <div style={{ marginBottom: '16px' }}>
                   <strong>Endereço:</strong> {selectedUser.address}
                 </div>
+              )}
+              {selectedUser.userType === 'jovem' && (
+                <>
+                  {selectedUser.birthDate && (
+                    <div style={{ marginBottom: '16px' }}>
+                      <strong>Data de Nascimento:</strong> {selectedUser.birthDate}
+                    </div>
+                  )}
+                  {selectedUser.cpf && (
+                    <div style={{ marginBottom: '16px' }}>
+                      <strong>CPF:</strong> {selectedUser.cpf}
+                    </div>
+                  )}
+                  {selectedUser.rg && (
+                    <div style={{ marginBottom: '16px' }}>
+                      <strong>RG:</strong> {selectedUser.rg}
+                    </div>
+                  )}
+                  {(selectedUser.state || selectedUser.city) && (
+                    <div style={{ marginBottom: '16px' }}>
+                      <strong>Cidade/Estado:</strong> {selectedUser.city || '-'} / {selectedUser.state || '-'}
+                    </div>
+                  )}
+                  {selectedUser.description && (
+                    <div style={{ marginBottom: '16px' }}>
+                      <strong>Descrição:</strong> {selectedUser.description}
+                    </div>
+                  )}
+                </>
               )}
               <div style={{ marginBottom: '20px' }}>
                 <strong>Cadastrado em:</strong> {new Date(selectedUser.createdAt).toLocaleDateString('pt-BR')} às {new Date(selectedUser.createdAt).toLocaleTimeString('pt-BR')}

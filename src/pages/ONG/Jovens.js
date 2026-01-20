@@ -5,6 +5,7 @@ import Card, { CardHeader } from '../../components/Card';
 import { useAuth } from '../../contexts/AuthContext';
 import { jovemService, serviceService } from '../../services';
 import { getImageUrl } from '../../utils/imageUtils';
+import { resolveTrainingModuleKey } from '../../modules/treinamento';
 import api from '../../services/api';
 
 const ONGJovens = () => {
@@ -262,6 +263,16 @@ const ONGJovens = () => {
         }
       });
     }
+
+    const servicesById = new Map(availableServices.map(service => [service.id, service.category]));
+    const availableCategories = new Set(availableServices.map(service => service.category));
+    const normalizedSkills = Array.from(
+      new Set(
+        (jovem.skills || []).map((skill) =>
+          servicesById.get(skill) || (availableCategories.has(skill) ? skill : skill)
+        )
+      )
+    );
     
     setFormData({
       name: jovem.name || '',
@@ -276,7 +287,7 @@ const ONGJovens = () => {
       city: jovem.city || '',
       photo: jovem.photo || '',
       description: jovem.description || '',
-      skills: jovem.skills || [],
+      skills: normalizedSkills,
       documents: jovem.documents || [],
       workingSchedule: workingSchedule
     });
@@ -344,12 +355,12 @@ const ONGJovens = () => {
           });
         }
       }
-      
+
       setFormData({
         ...formData,
         documents: [...formData.documents, ...uploadedFiles]
       });
-      
+
       alert(`${uploadedFiles.length} arquivo(s) enviado(s) com sucesso!`);
     } catch (error) {
       console.error('Erro no upload:', error);
@@ -373,14 +384,14 @@ const ONGJovens = () => {
     try {
       const formDataUpload = new FormData();
       formDataUpload.append('photo', file);
-      
+
       const response = await jovemService.uploadPhoto(formDataUpload);
-      
+
       setFormData({
         ...formData,
         photo: response.data.path
       });
-      
+
       alert('Foto enviada com sucesso!');
     } catch (error) {
       console.error('Erro no upload da foto:', error);
@@ -544,6 +555,19 @@ const ONGJovens = () => {
                     <div>
                       <span style={{ color: 'var(--gray)' }}>🏆</span>
                       {' '}{jovem.stats?.points || 0} pontos
+                    </div>
+                    <div style={{ marginLeft: 'auto' }}>
+                      {(() => {
+                        const totalSkills = (jovem.skills || []).length;
+                        const completedTrainings = Object.values(jovem.trainingCompletion || {}).filter(Boolean).length;
+                        return (
+                          <span
+                            className={`badge ${completedTrainings >= totalSkills && totalSkills > 0 ? 'badge-success' : 'badge-warning'}`}
+                          >
+                            🎓 {completedTrainings}/{totalSkills} trein.
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
 
@@ -745,7 +769,16 @@ const ONGJovens = () => {
                 <CardHeader>🎯 Serviços que o Jovem Realiza</CardHeader>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {selectedJovem.skills.map((skillId, index) => {
-                    const service = availableServices.find(s => s.id === skillId);
+                    const service = availableServices.find(
+                      (s) => s.id === skillId || s.category === skillId
+                    );
+                    const displayName = service?.title || skillId;
+                    const displayCategory = service?.category || skillId;
+                    const displayPrice = service?.basePrice ?? service?.price ?? null;
+                    const moduleKey = resolveTrainingModuleKey(service?.title || skillId, service?.category || skillId);
+                    const isTrained = moduleKey
+                      ? Boolean(selectedJovem.trainingCompletion?.[moduleKey])
+                      : false;
                     return service ? (
                       <div 
                         key={index}
@@ -760,14 +793,19 @@ const ONGJovens = () => {
                       >
                         <div>
                           <div style={{ fontWeight: '600', fontSize: '14px' }}>
-                            {service.title}
+                            {displayName}
                           </div>
                           <div style={{ fontSize: '12px', color: 'var(--gray)' }}>
-                            {service.category}
+                            {displayCategory}
                           </div>
+                          {moduleKey && (
+                            <div style={{ marginTop: '4px', fontSize: '12px', color: isTrained ? '#2E7D32' : '#E65100' }}>
+                              {isTrained ? '✅ Treinamento concluído' : '🔒 Treinamento pendente'}
+                            </div>
+                          )}
                         </div>
                         <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--primary-green)' }}>
-                          R$ {service.price}
+                          {displayPrice != null ? `R$ ${displayPrice.toFixed(2)}` : 'R$ 0,00'}
                         </div>
                       </div>
                     ) : (
@@ -1163,36 +1201,48 @@ const ONGJovens = () => {
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {serviceCategories.map(service => (
+                    {serviceCategories.map(service => {
+                      const skillKey = service.category || service.id;
+                      const moduleKey = resolveTrainingModuleKey(service.title, service.category);
+                      const isTrained = moduleKey
+                        ? Boolean(editingJovem?.trainingCompletion?.[moduleKey])
+                        : false;
+                      return (
                       <label
                         key={service.id}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
                           padding: '12px',
-                          border: formData.skills.includes(service.id) ? '2px solid var(--primary-blue)' : '2px solid #e0e0e0',
+                          border: formData.skills.includes(skillKey) ? '2px solid var(--primary-blue)' : '2px solid #e0e0e0',
                           borderRadius: '8px',
                           cursor: 'pointer',
-                          backgroundColor: formData.skills.includes(service.id) ? '#E3F2FD' : 'white',
+                          backgroundColor: formData.skills.includes(skillKey) ? '#E3F2FD' : 'white',
                           transition: 'all 0.2s'
                         }}
                       >
                         <input
                           type="checkbox"
-                          checked={formData.skills.includes(service.id)}
-                          onChange={() => handleToggleSkill(service.id)}
+                          checked={formData.skills.includes(skillKey)}
+                          onChange={() => handleToggleSkill(skillKey)}
                           style={{ marginRight: '12px', cursor: 'pointer', width: '18px', height: '18px' }}
                         />
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: '14px', fontWeight: formData.skills.includes(service.id) ? '600' : '400' }}>
+                          <div style={{ fontSize: '14px', fontWeight: formData.skills.includes(skillKey) ? '600' : '400' }}>
                             {service.title}
                           </div>
                           <div style={{ fontSize: '12px', color: 'var(--gray)', marginTop: '2px' }}>
-                            {service.category} • R$ {service.price}
+                            {service.category} • R$ {(service.basePrice ?? service.price ?? 0).toFixed(2)}
                           </div>
+                          {moduleKey && editingJovem && (
+                            <div style={{ marginTop: '4px', fontSize: '12px', color: isTrained ? '#2E7D32' : '#E65100' }}>
+                              {isTrained ? '✅ Treinamento concluído' : '🔒 Treinamento pendente'}
+                            </div>
+                          )}
                         </div>
                       </label>
-                    ))}
+                    );
+                  })}
                   </div>
                 )}
                 

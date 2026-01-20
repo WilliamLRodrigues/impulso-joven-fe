@@ -36,7 +36,9 @@ const JovemHistorico = () => {
       const avgRating = reviewsData.length > 0
         ? reviewsData.reduce((acc, r) => acc + r.rating, 0) / reviewsData.length
         : 0;
-      const totalEarnings = completed * 50; // Valor médio por serviço
+      const totalEarnings = servicesData
+        .filter((service) => service.status === 'completed')
+        .reduce((sum, service) => sum + (service.basePrice ?? service.price ?? 0), 0);
 
       setStats({
         total: servicesData.length,
@@ -117,7 +119,7 @@ const JovemHistorico = () => {
                     {service.description}
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--gray)' }}>
-                    {new Date(service.createdAt).toLocaleDateString('pt-BR')} • R$ {service.price || '50,00'}
+                    {new Date(service.createdAt).toLocaleDateString('pt-BR')} • R$ {(service.basePrice ?? service.price ?? 0).toFixed(2)}
                   </div>
                 </div>
               ))}

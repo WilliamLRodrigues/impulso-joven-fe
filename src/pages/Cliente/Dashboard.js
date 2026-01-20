@@ -4,7 +4,7 @@ import Header from '../../components/Header';
 import BottomNav from '../../components/BottomNav';
 import Card, { CardHeader } from '../../components/Card';
 import { useAuth } from '../../contexts/AuthContext';
-import { bookingService, serviceService } from '../../services';
+import { bookingService, serviceService, reviewService } from '../../services';
 import api from '../../services/api';
 import { getImageUrl } from '../../utils/imageUtils';
 
@@ -34,6 +34,7 @@ const ClienteDashboard = () => {
   });
   const [showPasswordFields, setShowPasswordFields] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [jovemReviews, setJovemReviews] = useState([]);
 
   // PIN Modal
   const [showPinModal, setShowPinModal] = useState(false);
@@ -359,6 +360,21 @@ const ClienteDashboard = () => {
 
       // Mostrar apenas agendamentos ativos no dashboard
       setRecentBookings(activeBookings);
+
+      const reviewsResponse = await reviewService.getAll({ clientId: user.id });
+      const allReviews = reviewsResponse.data || [];
+      const jovemReviewsList = allReviews.filter(
+        (r) => r.reviewerType === 'jovem' || r.targetType === 'client'
+      );
+      const bookingMap = new Map(bookings.map((b) => [b.id, b]));
+      const enrichedReviews = jovemReviewsList.map((reviewItem) => {
+        const booking = bookingMap.get(reviewItem.bookingId);
+        return {
+          ...reviewItem,
+          jovemName: booking?.jovemName || reviewItem.jovemName || 'Jovem'
+        };
+      });
+      setJovemReviews(enrichedReviews);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     } finally {
@@ -435,6 +451,44 @@ const ClienteDashboard = () => {
               ✏️ Editar Perfil
             </button>
           </div>
+        </Card>
+
+        <Card style={{ marginTop: '20px' }}>
+          <CardHeader>⭐ Avaliações Recebidas dos Jovens</CardHeader>
+          {jovemReviews.length === 0 ? (
+            <div style={{ padding: '16px', color: 'var(--gray)', textAlign: 'center' }}>
+              Nenhuma avaliação recebida ainda.
+            </div>
+          ) : (
+            <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {jovemReviews.slice(0, 5).map((reviewItem) => (
+                <div
+                  key={reviewItem.id}
+                  style={{
+                    background: '#F5F5F5',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: '1px solid #E0E0E0'
+                  }}
+                >
+                  <div style={{ fontSize: '13px', color: 'var(--gray)', marginBottom: '6px' }}>
+                    Avaliado por: {reviewItem.jovemName}
+                  </div>
+                  <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '6px' }}>
+                    ⭐ Avaliação: {reviewItem.rating}/5
+                  </div>
+                  {reviewItem.comment && (
+                    <div style={{ fontSize: '13px', color: '#555', lineHeight: '1.5' }}>
+                      “{reviewItem.comment}”
+                    </div>
+                  )}
+                  <div style={{ fontSize: '12px', color: 'var(--gray)', marginTop: '6px' }}>
+                    {reviewItem.createdAt && `Em ${new Date(reviewItem.createdAt).toLocaleDateString('pt-BR')}`}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
 
         {/* Agendamentos Ativos - Prioridade */}

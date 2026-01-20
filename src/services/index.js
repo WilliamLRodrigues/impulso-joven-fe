@@ -87,6 +87,8 @@ export const bookingService = {
   validateCheckInPin: (id, clientId, pin) => api.post(`/bookings/${id}/validate-pin`, { clientId, pin }),
   completeService: (id, clientId, rating, review, photos, price) => 
     api.post(`/bookings/${id}/complete`, { clientId, rating, review, photos, price }),
+  reviewClientByJovem: (id, jovemId, rating, review) =>
+    api.post(`/bookings/${id}/review-client`, { jovemId, rating, review }),
   cancelByClient: (id, clientId, reason) => api.post(`/bookings/${id}/cancel-client`, { clientId, reason }),
   rescheduleByClient: (id, clientId, newDate, newTime) => 
     api.post(`/bookings/${id}/reschedule-client`, { clientId, newDate, newTime })

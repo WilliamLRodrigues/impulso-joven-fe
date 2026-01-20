@@ -19,6 +19,11 @@ const ONGServicos = () => {
   const [generatedPin, setGeneratedPin] = useState('');
   const [acceptedBookingDetails, setAcceptedBookingDetails] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [selectedBookingForReview, setSelectedBookingForReview] = useState(null);
+  const [clientRating, setClientRating] = useState(5);
+  const [clientReview, setClientReview] = useState('');
+  const [savingReview, setSavingReview] = useState(false);
   
   // Filtros
   const [activeTab, setActiveTab] = useState('pending');
@@ -140,6 +145,40 @@ const ONGServicos = () => {
       setShowModal(true);
     } else {
       setShowDetailsModal(true);
+    }
+  };
+
+  const handleOpenClientReview = (booking) => {
+    setSelectedBookingForReview(booking);
+    setClientRating(5);
+    setClientReview('');
+    setShowReviewModal(true);
+  };
+
+  const handleSubmitClientReview = async () => {
+    if (!selectedBookingForReview) return;
+    if (!clientRating || clientRating < 1 || clientRating > 5) {
+      alert('Selecione uma avaliação de 1 a 5 estrelas.');
+      return;
+    }
+
+    try {
+      setSavingReview(true);
+      await bookingService.reviewClientByJovem(
+        selectedBookingForReview.id,
+        selectedBookingForReview.jovemId,
+        clientRating,
+        clientReview
+      );
+      setShowReviewModal(false);
+      setSelectedBookingForReview(null);
+      loadData();
+      alert('Avaliação enviada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao avaliar cliente:', error);
+      alert(error.response?.data?.error || 'Erro ao enviar avaliação');
+    } finally {
+      setSavingReview(false);
     }
   };
 
@@ -731,6 +770,28 @@ const ONGServicos = () => {
               </div>
             )}
 
+            {selectedBooking.status === 'completed' && (
+              <div style={{ marginBottom: '16px' }}>
+                {!selectedBooking.rating && (
+                  <div style={{ fontSize: '13px', color: '#E65100', fontWeight: '600' }}>
+                    ⏳ Aguardando avaliação do cliente
+                  </div>
+                )}
+                {selectedBooking.rating && (selectedBooking.jovemRating ? (
+                  <div style={{ fontSize: '13px', color: '#2E7D32', fontWeight: '600' }}>
+                    ✅ Cliente avaliado: {selectedBooking.jovemRating}/5
+                  </div>
+                ) : (
+                  <button
+                    className="btn btn-primary btn-full"
+                    onClick={() => handleOpenClientReview(selectedBooking)}
+                  >
+                    ⭐ Avaliar Cliente
+                  </button>
+                ))}
+              </div>
+            )}
+
             <button 
               className="btn btn-secondary btn-full"
               onClick={() => {
@@ -740,6 +801,100 @@ const ONGServicos = () => {
             >
               ❌ Fechar
             </button>
+          </Card>
+        </div>
+      )}
+
+      {showReviewModal && selectedBookingForReview && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px'
+        }}>
+          <Card style={{ maxWidth: '500px', width: '100%', maxHeight: '75vh', overflowY: 'auto' }}>
+            <CardHeader>⭐ Avaliar Cliente</CardHeader>
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ fontWeight: '600', fontSize: '18px', marginBottom: '8px' }}>
+                {selectedBookingForReview.clientInfo?.name || 'Cliente'}
+              </div>
+              <div style={{ fontSize: '13px', color: 'var(--gray)', marginBottom: '20px' }}>
+                Serviço: {selectedBookingForReview.serviceName}
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontWeight: '600', marginBottom: '12px' }}>
+                  Como foi o atendimento do cliente? *
+                </label>
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '8px' }}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      onClick={() => setClientRating(star)}
+                      style={{
+                        fontSize: '40px',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        transition: 'transform 0.2s'
+                      }}
+                      onMouseOver={(e) => e.target.style.transform = 'scale(1.2)'}
+                      onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
+                    >
+                      {star <= clientRating ? '⭐' : '☆'}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ textAlign: 'center', fontSize: '14px', color: 'var(--gray)' }}>
+                  {clientRating === 5 && '🌟 Excelente!'}
+                  {clientRating === 4 && '😊 Muito bom!'}
+                  {clientRating === 3 && '👍 Bom'}
+                  {clientRating === 2 && '😐 Regular'}
+                  {clientRating === 1 && '😞 Insatisfeito'}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px' }}>
+                  Comentário (opcional)
+                </label>
+                <textarea
+                  className="input"
+                  rows="4"
+                  placeholder="Compartilhe sua experiência com o cliente..."
+                  value={clientReview}
+                  onChange={(e) => setClientReview(e.target.value)}
+                  style={{ resize: 'vertical' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                className="btn btn-secondary"
+                style={{ flex: 1 }}
+                onClick={() => setShowReviewModal(false)}
+                disabled={savingReview}
+              >
+                Cancelar
+              </button>
+              <button
+                className="btn btn-primary"
+                style={{ flex: 1 }}
+                onClick={handleSubmitClientReview}
+                disabled={savingReview}
+              >
+                {savingReview ? '⏳ Enviando...' : 'Enviar Avaliação'}
+              </button>
+            </div>
           </Card>
         </div>
       )}

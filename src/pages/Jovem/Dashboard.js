@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Header from '../../components/Header';
 import BottomNav from '../../components/BottomNav';
 import Card, { CardHeader } from '../../components/Card';
@@ -13,7 +13,6 @@ const JovemDashboard = () => {
   const { user, setUser } = useAuth();
   const [jovemData, setJovemData] = useState(null);
   const [availableServices, setAvailableServices] = useState([]);
-  const [myServices, setMyServices] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [pendingBookings, setPendingBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,6 +20,7 @@ const JovemDashboard = () => {
   const [trainingModalOpen, setTrainingModalOpen] = useState(false);
   const [trainingModalKey, setTrainingModalKey] = useState(null);
   const [trainingMessage, setTrainingMessage] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   
   // Estados para edição de perfil
   const [activeView, setActiveView] = useState('dashboard');
@@ -41,18 +41,6 @@ const JovemDashboard = () => {
   });
   const [showPasswordFields, setShowPasswordFields] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    loadData();
-    loadUserProfile();
-    
-    // Atualizar automaticamente a cada 10 segundos (silencioso)
-    const interval = setInterval(() => {
-      loadData(true); // true = atualização silenciosa
-    }, 10000);
-    
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     if (!user?.id) {
@@ -92,9 +80,9 @@ const JovemDashboard = () => {
     { uf: 'TO', nome: 'Tocantins' }
   ];
 
-  const loadUserProfile = async () => {
+  const loadUserProfile = useCallback(async () => {
     try {
-      const response = await api.get(`/auth/user/${user.id}`);
+      const response = await jovemService.getById(user.id);
       const userData = response.data;
       setProfileData({
         name: userData.name || '',
@@ -108,12 +96,43 @@ const JovemDashboard = () => {
     } catch (error) {
       console.error('Erro ao carregar perfil:', error);
     }
-  };
+  }, [user?.id]);
 
   const handleOpenEditModal = () => {
     setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     setShowPasswordFields(false);
     setShowEditModal(true);
+  };
+
+  const handlePhotoUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor, selecione uma imagem (JPG, PNG).');
+      return;
+    }
+
+    setUploadingPhoto(true);
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append('photo', file);
+
+      const response = await jovemService.uploadPhoto(formDataUpload);
+      const newPhoto = response.data?.path;
+
+      if (newPhoto) {
+        await jovemService.update(user.id, { photo: newPhoto });
+        setJovemData((prev) => (prev ? { ...prev, photo: newPhoto } : prev));
+        alert('Foto atualizada com sucesso!');
+      }
+    } catch (error) {
+      console.error('Erro ao enviar foto:', error);
+      alert('Erro ao atualizar foto. Tente novamente.');
+    } finally {
+      setUploadingPhoto(false);
+      event.target.value = '';
+    }
   };
 
   const handleSaveProfile = async (e) => {
@@ -142,15 +161,26 @@ const JovemDashboard = () => {
         }
       }
       
-      // Atualizar perfil
-      await api.put(`/auth/user/${user.id}`, profileData);
-      
-      // Atualizar descrição do jovem especificamente
-      if (profileData.description !== jovemData.description) {
-        await api.put(`/jovens/${user.id}`, {
-          description: profileData.description
-        });
-      }
+      // Atualizar perfil do jovem (fonte principal de dados)
+      await jovemService.update(user.id, {
+        name: profileData.name,
+        email: profileData.email,
+        phone: profileData.phone,
+        address: profileData.address,
+        state: profileData.state,
+        city: profileData.city,
+        description: profileData.description
+      });
+
+      // Sincronizar dados básicos no usuário de autenticação
+      await api.put(`/auth/user/${user.id}`, {
+        name: profileData.name,
+        email: profileData.email,
+        phone: profileData.phone,
+        address: profileData.address,
+        state: profileData.state,
+        city: profileData.city
+      });
       
       // Atualizar senha se necessário
       if (showPasswordFields && passwordData.currentPassword) {
@@ -187,7 +217,7 @@ const JovemDashboard = () => {
     }
   };
 
-  const loadData = async (silent = false) => {
+  const loadData = useCallback(async (silent = false) => {
     try {
       const jovemResponse = await jovemService.getById(user.id);
       let jovemDataResult = jovemResponse.data;
@@ -235,9 +265,6 @@ const JovemDashboard = () => {
       
       setAvailableServices(uniqueCategories);
 
-      const myServicesResponse = await serviceService.getAll({ jovemId: user.id });
-      setMyServices(myServicesResponse.data);
-      
       const bookingsResponse = await bookingService.getAll({ jovemId: user.id });
       const allBookings = bookingsResponse.data;
       setBookings(allBookings);
@@ -252,7 +279,19 @@ const JovemDashboard = () => {
     } finally {
       if (!silent) setLoading(false);
     }
-  };
+  }, [user?.id]);
+
+  useEffect(() => {
+    loadData();
+    loadUserProfile();
+    
+    // Atualizar automaticamente a cada 10 segundos (silencioso)
+    const interval = setInterval(() => {
+      loadData(true); // true = atualização silenciosa
+    }, 10000);
+    
+    return () => clearInterval(interval);
+  }, [loadData, loadUserProfile]);
 
   const handleAcceptServiceCategory = async (service) => {
     try {
@@ -555,7 +594,7 @@ const JovemDashboard = () => {
                     marginBottom: '12px'
                   }}>
                     <div style={{ fontSize: '13px', color: '#666' }}>
-                      💰 Valor médio: R$ {service.price?.toFixed(2)} • ⏱️ Duração: {service.duration}h
+                      💰 Valor médio: R$ {(service.basePrice ?? service.price ?? 0).toFixed(2)} • ⏱️ Duração: {service.duration}h
                     </div>
                   </div>
                   
@@ -843,6 +882,23 @@ const JovemDashboard = () => {
                       👤
                     </div>
                   )}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoUpload}
+                    style={{ display: 'none' }}
+                    id="jovem-photo-upload"
+                    disabled={uploadingPhoto}
+                  />
+                  <label
+                    htmlFor="jovem-photo-upload"
+                    className="btn btn-secondary"
+                    style={{ cursor: uploadingPhoto ? 'not-allowed' : 'pointer' }}
+                  >
+                    {uploadingPhoto ? '⏳ Enviando...' : jovemData.photo ? '🔄 Trocar Foto' : '📤 Adicionar Foto'}
+                  </label>
                 </div>
 
                 {/* Informações */}

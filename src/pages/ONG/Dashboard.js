@@ -235,7 +235,7 @@ const ONGDashboard = () => {
     const filteredBookings = filterByPeriod(bookings);
     const filteredReviews = filterByPeriod(reviews);
     const completedBookings = filteredBookings.filter(b => b.status === 'completed');
-    const totalEarnings = completedBookings.reduce((sum, b) => sum + (b.finalPrice || 0), 0);
+    const totalEarnings = completedBookings.reduce((sum, b) => sum + (b.basePrice ?? b.finalPrice ?? 0), 0);
 
     return {
       totalJovens: jovens.length,
@@ -263,7 +263,7 @@ const ONGDashboard = () => {
       const completedBookings = jovemBookings.filter(b => b.status === 'completed');
       const completed = completedBookings.length;
       const cancelled = jovemBookings.filter(b => b.status === 'cancelled').length;
-      const totalEarnings = completedBookings.reduce((sum, b) => sum + (b.finalPrice || 0), 0);
+      const totalEarnings = completedBookings.reduce((sum, b) => sum + (b.basePrice ?? b.finalPrice ?? 0), 0);
       const avgRating = jovemReviews.length > 0
         ? jovemReviews.reduce((sum, r) => sum + r.rating, 0) / jovemReviews.length
         : 0;
@@ -370,7 +370,9 @@ const ONGDashboard = () => {
       const jovemReviews = filteredReviews.filter(r => r.jovemId === jovem.id);
       const avgRating = jovemReviews.length > 0 ? (jovemReviews.reduce((sum, r) => sum + r.rating, 0) / jovemReviews.length).toFixed(1) : '0.0';
       const completionRate = jovemBookings.length > 0 ? ((completed / jovemBookings.length) * 100).toFixed(1) : '0.0';
-      const totalEarnings = jovemBookings.filter(b => b.status === 'completed').reduce((sum, b) => sum + (b.finalPrice || 0), 0);
+      const totalEarnings = jovemBookings
+        .filter(b => b.status === 'completed')
+        .reduce((sum, b) => sum + (b.basePrice ?? b.finalPrice ?? 0), 0);
       const avgEarnings = completed > 0 ? (totalEarnings / completed).toFixed(2) : '0.00';
       
       csvContent += `${jovem.name},${jovemBookings.length},${completed},${inProgress},${cancelled},${completionRate}%,${avgRating},${jovemReviews.length},R$ ${totalEarnings.toFixed(2)},R$ ${avgEarnings}\n`;
@@ -1211,7 +1213,7 @@ const ONGDashboard = () => {
                               💰 Ganho Total
                             </div>
                             <div style={{ fontSize: '24px', fontWeight: '700', color: '#2E7D32' }}>
-                              R$ {jovemBookings.filter(b => b.status === 'completed').reduce((sum, b) => sum + (b.finalPrice || 0), 0).toFixed(2)}
+                              R$ {jovemBookings.filter(b => b.status === 'completed').reduce((sum, b) => sum + (b.basePrice ?? b.finalPrice ?? 0), 0).toFixed(2)}
                             </div>
                           </div>
                         </div>
@@ -1280,7 +1282,7 @@ const ONGDashboard = () => {
                           <div style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
                             <div style={{ textAlign: 'center', padding: '12px', background: '#E8F5E9', borderRadius: '8px' }}>
                               <div style={{ fontSize: '24px', fontWeight: '700', color: '#2E7D32' }}>
-                                💰 R$ {jovemBookings.filter(b => b.status === 'completed').reduce((sum, b) => sum + (b.finalPrice || 0), 0).toFixed(2)}
+                                💰 R$ {jovemBookings.filter(b => b.status === 'completed').reduce((sum, b) => sum + (b.basePrice ?? b.finalPrice ?? 0), 0).toFixed(2)}
                               </div>
                               <div style={{ fontSize: '12px', color: '#2E7D32', marginTop: '4px', fontWeight: '600' }}>
                                 Ganho Total
@@ -1288,7 +1290,7 @@ const ONGDashboard = () => {
                             </div>
                             <div style={{ textAlign: 'center', padding: '12px', background: '#F1F8E9', borderRadius: '8px' }}>
                               <div style={{ fontSize: '24px', fontWeight: '700', color: '#558B2F' }}>
-                                R$ {completed > 0 ? (jovemBookings.filter(b => b.status === 'completed').reduce((sum, b) => sum + (b.finalPrice || 0), 0) / completed).toFixed(2) : '0.00'}
+                                R$ {completed > 0 ? (jovemBookings.filter(b => b.status === 'completed').reduce((sum, b) => sum + (b.basePrice ?? b.finalPrice ?? 0), 0) / completed).toFixed(2) : '0.00'}
                               </div>
                               <div style={{ fontSize: '12px', color: '#558B2F', marginTop: '4px', fontWeight: '600' }}>
                                 Média por Serviço

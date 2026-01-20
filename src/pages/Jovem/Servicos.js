@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Header from '../../components/Header';
 import BottomNav from '../../components/BottomNav';
 import Card, { CardHeader } from '../../components/Card';
@@ -54,6 +54,36 @@ const JovemServicos = () => {
   const [showTrainingModal, setShowTrainingModal] = useState(false);
   const [trainingModuleKey, setTrainingModuleKey] = useState(null);
 
+  const loadPendingBookings = useCallback(async (silent = false) => {
+    try {
+      if (!user?.id) {
+        return;
+      }
+      if (!silent) setLoading(true);
+      const response = await bookingService.getPendingForJovem(user.id);
+      setPendingBookings(response.data);
+    } catch (error) {
+      console.error('Erro ao carregar solicitações:', error);
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }, [user?.id]);
+
+  const loadAcceptedBookings = useCallback(async (silent = false) => {
+    try {
+      if (!user?.id) {
+        return;
+      }
+      const response = await bookingService.getAll({ jovemId: user.id });
+      const accepted = response.data.filter(
+        (b) => b.status === 'confirmed' || b.status === 'in_progress' || b.status === 'checked_in'
+      );
+      setAcceptedBookings(accepted);
+    } catch (error) {
+      console.error('Erro ao carregar serviços aceitos:', error);
+    }
+  }, [user?.id]);
+
   useEffect(() => {
     loadPendingBookings();
     loadAcceptedBookings();
@@ -64,7 +94,7 @@ const JovemServicos = () => {
     }, 10000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [loadPendingBookings, loadAcceptedBookings]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -87,36 +117,6 @@ const JovemServicos = () => {
 
     loadTrainingProgress();
   }, [user?.id]);
-
-  useEffect(() => {
-    if (!user?.id) {
-      return;
-    }
-  }, [user?.id]);
-
-  const loadPendingBookings = async (silent = false) => {
-    try {
-      if (!silent) setLoading(true);
-      const response = await bookingService.getPendingForJovem(user.id);
-      setPendingBookings(response.data);
-    } catch (error) {
-      console.error('Erro ao carregar solicitações:', error);
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  };
-
-  const loadAcceptedBookings = async (silent = false) => {
-    try {
-      const response = await bookingService.getAll({ jovemId: user.id });
-      const accepted = response.data.filter(
-        (b) => b.status === 'confirmed' || b.status === 'in_progress' || b.status === 'checked_in'
-      );
-      setAcceptedBookings(accepted);
-    } catch (error) {
-      console.error('Erro ao carregar serviços aceitos:', error);
-    }
-  };
 
   const handleOpenTrainingModal = (moduleKey) => {
     if (!moduleKey) return;
@@ -527,6 +527,23 @@ const JovemServicos = () => {
                 </div>
               )}
 
+              {(selectedBooking.basePrice ?? selectedBooking.price) != null && (
+                <div style={{
+                  background: '#E8F5E9',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  marginBottom: '12px',
+                  border: '2px solid #4CAF50'
+                }}>
+                  <div style={{ fontSize: '14px', color: '#2E7D32', fontWeight: '700' }}>
+                    💰 Ganho previsto: R$ {(selectedBooking.basePrice ?? selectedBooking.price ?? 0).toFixed(2)}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#2E7D32', marginTop: '4px' }}>
+                    Este é o valor que fica com você.
+                  </div>
+                </div>
+              )}
+
               {selectedBooking.clientName && (
                 <div style={{ 
                   background: '#E3F2FD', 
@@ -667,7 +684,7 @@ const JovemServicos = () => {
                     marginBottom: '12px'
                   }}>
                     <iframe
-                      title="Mapa do local"
+                      title={`Mapa do local - solicitação ${selectedBooking.id || ''}`}
                       src={getSimpleMapUrl(selectedBooking.clientInfo.fullAddress)}
                       width="100%"
                       height="100%"
@@ -1179,6 +1196,7 @@ const JovemServicos = () => {
                     marginBottom: '12px'
                   }}>
                     <iframe
+                      title={`Mapa do local - detalhes ${selectedBooking.id || ''}`}
                       width="100%"
                       height="100%"
                       style={{ border: 0 }}
