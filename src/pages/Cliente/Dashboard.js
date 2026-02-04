@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/Header';
 import BottomNav from '../../components/BottomNav';
 import Card, { CardHeader } from '../../components/Card';
 import { useAuth } from '../../contexts/AuthContext';
-import { bookingService, serviceService, reviewService } from '../../services';
+import { bookingService, reviewService } from '../../services';
 import api from '../../services/api';
 import { getImageUrl } from '../../utils/imageUtils';
 
@@ -97,20 +97,7 @@ const ClienteDashboard = () => {
     { uf: 'TO', nome: 'Tocantins' }
   ];
 
-  useEffect(() => {
-    loadData();
-    loadUserProfile();
-    
-    // Atualizar dados a cada 10 segundos para mostrar mudanças de status em tempo real
-    const interval = setInterval(() => {
-      loadData();
-    }, 10000);
-    
-    // Limpar intervalo ao desmontar o componente
-    return () => clearInterval(interval);
-  }, []);
-
-  const loadUserProfile = async () => {
+  const loadUserProfile = useCallback(async () => {
     try {
       const response = await api.get(`/auth/user/${user.id}`);
       const userData = response.data;
@@ -125,7 +112,7 @@ const ClienteDashboard = () => {
     } catch (error) {
       console.error('Erro ao carregar perfil:', error);
     }
-  };
+  }, [user.id]);
 
   const handleOpenEditModal = () => {
     // Resetar campos de senha ao abrir o modal
@@ -342,7 +329,7 @@ const ClienteDashboard = () => {
     }
   };
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const bookingsResponse = await bookingService.getAll({ clientId: user.id });
       const bookings = bookingsResponse.data;
@@ -380,7 +367,20 @@ const ClienteDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user.id]);
+
+  useEffect(() => {
+    loadData();
+    loadUserProfile();
+    
+    // Atualizar dados a cada 10 segundos para mostrar mudanças de status em tempo real
+    const interval = setInterval(() => {
+      loadData();
+    }, 10000);
+    
+    // Limpar intervalo ao desmontar o componente
+    return () => clearInterval(interval);
+  }, [loadData, loadUserProfile]);
 
   const getStatusBadge = (status) => {
     const badges = {

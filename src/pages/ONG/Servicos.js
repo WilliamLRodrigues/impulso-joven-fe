@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Header from '../../components/Header';
 import BottomNav from '../../components/BottomNav';
 import Card, { CardHeader } from '../../components/Card';
@@ -29,27 +29,7 @@ const ONGServicos = () => {
   const [activeTab, setActiveTab] = useState('pending');
   const [selectedJovemFilter, setSelectedJovemFilter] = useState('all');
 
-  useEffect(() => {
-    loadData();
-    
-    // Auto-atualizar a cada 10 segundos
-    intervalRef.current = setInterval(() => {
-      loadData(true);
-    }, 10000);
-    
-    // Limpar intervalo ao desmontar
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    applyFilters();
-  }, [activeTab, selectedJovemFilter, allBookings]);
-
-  const loadData = async (silent = false) => {
+  const loadData = useCallback(async (silent = false) => {
     try {
       if (!silent) {
         setLoading(true);
@@ -86,9 +66,9 @@ const ONGServicos = () => {
         setLoading(false);
       }
     }
-  };
+  }, [user.id]);
 
-  const applyFilters = () => {
+  const applyFilters = useCallback(() => {
     let filtered = [...allBookings];
     
     // Filtro por status
@@ -113,7 +93,27 @@ const ONGServicos = () => {
     filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     
     setFilteredBookings(filtered);
-  };
+  }, [activeTab, selectedJovemFilter, allBookings]);
+
+  useEffect(() => {
+    loadData();
+    
+    // Auto-atualizar a cada 10 segundos
+    intervalRef.current = setInterval(() => {
+      loadData(true);
+    }, 10000);
+    
+    // Limpar intervalo ao desmontar
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [loadData]);
+
+  useEffect(() => {
+    applyFilters();
+  }, [applyFilters]);
 
   const getStatusCounts = () => {
     return {
@@ -400,10 +400,6 @@ const ONGServicos = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {filteredBookings.map(booking => {
                 const badge = getStatusBadge(booking.status);
-                const recommendedForOng = booking.ongRecommendedJovens || booking.recommendedJovens?.filter(rj => 
-                  ongJovens.some(oj => oj.id === rj.id)
-                );
-
                 return (
                   <Card key={booking.id} style={{ backgroundColor: '#f8f9fa', border: '2px solid #e3f2fd' }}>
                     <div>

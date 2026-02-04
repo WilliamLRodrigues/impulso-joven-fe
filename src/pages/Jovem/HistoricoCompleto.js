@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Header from '../../components/Header';
 import BottomNav from '../../components/BottomNav';
 import Card, { CardHeader } from '../../components/Card';
@@ -15,7 +15,6 @@ const JovemHistoricoCompleto = () => {
   const [showPinModal, setShowPinModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [generatedPin, setGeneratedPin] = useState('');
-  const [generatingPin, setGeneratingPin] = useState(false);
   const [showOnlyRecent, setShowOnlyRecent] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -26,18 +25,7 @@ const JovemHistoricoCompleto = () => {
   const [savingReview, setSavingReview] = useState(false);
   const itemsPerPage = 10;
 
-  useEffect(() => {
-    loadBookings();
-    
-    // Atualizar automaticamente a cada 10 segundos (silencioso)
-    const interval = setInterval(() => {
-      loadBookings(true); // true = atualização silenciosa
-    }, 10000);
-    
-    return () => clearInterval(interval);
-  }, []);
-
-  const loadBookings = async (silent = false) => {
+  const loadBookings = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);
       const response = await bookingService.getAll({ jovemId: user.id });
@@ -53,23 +41,18 @@ const JovemHistoricoCompleto = () => {
     } finally {
       if (!silent) setLoading(false);
     }
-  };
+  }, [user.id]);
 
-  const handleGeneratePin = async (booking) => {
-    try {
-      setGeneratingPin(true);
-      const response = await bookingService.generateCheckInPin(booking.id, user.id);
-      setGeneratedPin(response.data.checkInPin);
-      setSelectedBooking(booking);
-      setShowPinModal(true);
-      loadBookings(); // Recarregar para atualizar status
-    } catch (error) {
-      console.error('Erro ao gerar PIN:', error);
-      alert(error.response?.data?.error || 'Erro ao gerar PIN');
-    } finally {
-      setGeneratingPin(false);
-    }
-  };
+  useEffect(() => {
+    loadBookings();
+    
+    // Atualizar automaticamente a cada 10 segundos (silencioso)
+    const interval = setInterval(() => {
+      loadBookings(true); // true = atualização silenciosa
+    }, 10000);
+    
+    return () => clearInterval(interval);
+  }, [loadBookings]);
 
   const handleOpenClientReview = (booking) => {
     setSelectedBookingForReview(booking);

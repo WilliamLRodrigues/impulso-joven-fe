@@ -8,6 +8,8 @@ import api from '../../services/api';
 const AdminServicos = () => {
   const [services, setServices] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [modalMode, setModalMode] = useState('create');
+  const [editingServiceId, setEditingServiceId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [profitMargin, setProfitMargin] = useState(0);
   const [savingMargin, setSavingMargin] = useState(false);
@@ -82,16 +84,27 @@ const AdminServicos = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await serviceService.create({
+      const payload = {
         ...formData,
         price: parseFloat(formData.price),
-        duration: parseInt(formData.duration),
-        status: 'available',
-        createdAt: new Date().toISOString()
-      });
-      
-      alert('Serviço criado com sucesso!');
+        duration: parseInt(formData.duration)
+      };
+
+      if (modalMode === 'edit' && editingServiceId) {
+        await serviceService.update(editingServiceId, payload);
+        alert('Serviço atualizado com sucesso!');
+      } else {
+        await serviceService.create({
+          ...payload,
+          status: 'available',
+          createdAt: new Date().toISOString()
+        });
+        alert('Serviço criado com sucesso!');
+      }
+
       setShowModal(false);
+      setModalMode('create');
+      setEditingServiceId(null);
       setFormData({
         title: '',
         description: '',
@@ -101,8 +114,8 @@ const AdminServicos = () => {
       });
       loadServices();
     } catch (error) {
-      console.error('Erro ao criar serviço:', error);
-      alert('Erro ao criar serviço');
+      console.error('Erro ao salvar serviço:', error);
+      alert('Erro ao salvar serviço');
     }
   };
 
@@ -117,6 +130,32 @@ const AdminServicos = () => {
       console.error('Erro ao excluir serviço:', error);
       alert('Erro ao excluir serviço');
     }
+  };
+
+  const handleOpenCreate = () => {
+    setModalMode('create');
+    setEditingServiceId(null);
+    setFormData({
+      title: '',
+      description: '',
+      category: '',
+      price: '',
+      duration: ''
+    });
+    setShowModal(true);
+  };
+
+  const handleOpenEdit = (service) => {
+    setModalMode('edit');
+    setEditingServiceId(service.id);
+    setFormData({
+      title: service.title || '',
+      description: service.description || '',
+      category: service.category || '',
+      price: (service.basePrice ?? service.price ?? '').toString(),
+      duration: service.duration?.toString() || ''
+    });
+    setShowModal(true);
   };
 
   if (loading) {
@@ -227,7 +266,7 @@ const AdminServicos = () => {
         {/* Botão Adicionar */}
         <button 
           className="btn btn-primary btn-full"
-          onClick={() => setShowModal(true)}
+          onClick={handleOpenCreate}
           style={{ marginTop: '20px' }}
         >
           ➕ Cadastrar Novo Serviço
@@ -273,7 +312,9 @@ const AdminServicos = () => {
                         }}>
                           {service.category}
                         </span>
-                        <span style={{ color: '#666' }}>💰 R$ {service.price?.toFixed(2)}</span>
+                        <span style={{ color: '#666' }}>
+                          💰 R$ {(service.basePrice ?? service.price ?? 0).toFixed(2)}
+                        </span>
                         <span style={{ color: '#666' }}>⏱️ {service.duration}h</span>
                         <span style={{ 
                           padding: '4px 8px', 
@@ -285,21 +326,36 @@ const AdminServicos = () => {
                         </span>
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleDelete(service.id)}
-                      style={{
-                        background: '#f44336',
-                        color: 'white',
-                        border: 'none',
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        marginLeft: '12px'
-                      }}
-                    >
-                      🗑️ Excluir
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px', marginLeft: '12px' }}>
+                      <button
+                        onClick={() => handleOpenEdit(service)}
+                        style={{
+                          background: '#1976D2',
+                          color: 'white',
+                          border: 'none',
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontSize: '14px'
+                        }}
+                      >
+                        ✏️ Editar
+                      </button>
+                      <button
+                        onClick={() => handleDelete(service.id)}
+                        style={{
+                          background: '#f44336',
+                          color: 'white',
+                          border: 'none',
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontSize: '14px'
+                        }}
+                      >
+                        🗑️ Excluir
+                      </button>
+                    </div>
                   </div>
                 </Card>
               ))}
@@ -324,7 +380,7 @@ const AdminServicos = () => {
           padding: '20px'
         }}>
           <Card style={{ maxWidth: '500px', width: '100%', maxHeight: '90vh', overflow: 'auto' }}>
-            <CardHeader>➕ Novo Serviço</CardHeader>
+            <CardHeader>{modalMode === 'edit' ? '✏️ Editar Serviço' : '➕ Novo Serviço'}</CardHeader>
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#333' }}>
@@ -405,12 +461,16 @@ const AdminServicos = () => {
 
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
-                  ✅ Cadastrar
+                  {modalMode === 'edit' ? '✅ Salvar' : '✅ Cadastrar'}
                 </button>
                 <button 
                   type="button" 
                   className="btn btn-secondary" 
-                  onClick={() => setShowModal(false)}
+                  onClick={() => {
+                    setShowModal(false);
+                    setModalMode('create');
+                    setEditingServiceId(null);
+                  }}
                   style={{ flex: 1 }}
                 >
                   ❌ Cancelar
