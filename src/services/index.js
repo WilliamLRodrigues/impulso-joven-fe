@@ -49,7 +49,7 @@ export const ongService = {
 
 export const jovemService = {
   create: (data) => api.post('/jovens', data),
-  getAll: (ongId) => api.get('/jovens', { params: { ongId } }),
+  getAll: (ongId) => ongId ? api.get('/jovens', { params: { ongId } }) : api.get('/jovens'),
   getById: (id) => api.get(`/jovens/${id}`),
   update: (id, data) => api.put(`/jovens/${id}`, data),
   delete: (id) => api.delete(`/jovens/${id}`),

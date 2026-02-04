@@ -6,6 +6,7 @@ import { ongService, jovemService } from '../../services';
 
 const AdminONGs = () => {
   const [ongs, setOngs] = useState([]);
+  const [allJovens, setAllJovens] = useState([]);
   const [selectedOng, setSelectedOng] = useState(null);
   const [ongJovens, setOngJovens] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,8 +64,12 @@ const AdminONGs = () => {
 
   const loadOngs = async () => {
     try {
-      const response = await ongService.getAll();
-      setOngs(response.data);
+      const [ongsResponse, jovensResponse] = await Promise.all([
+        ongService.getAll(),
+        jovemService.getAll()
+      ]);
+      setOngs(ongsResponse.data);
+      setAllJovens(jovensResponse.data || []);
     } catch (error) {
       console.error('Erro ao carregar ONGs:', error);
       alert('Erro ao carregar ONGs');
@@ -73,14 +78,10 @@ const AdminONGs = () => {
     }
   };
 
-  const handleSelectOng = async (ong) => {
+  const handleSelectOng = (ong) => {
     setSelectedOng(ong);
-    try {
-      const response = await jovemService.getAll(ong.id);
-      setOngJovens(response.data);
-    } catch (error) {
-      console.error('Erro ao carregar jovens da ONG:', error);
-    }
+    const filtered = allJovens.filter(j => j.ongId === ong.id);
+    setOngJovens(filtered);
   };
 
   const handleCreateOng = async (e) => {
@@ -197,6 +198,9 @@ const AdminONGs = () => {
           ) : (
             <div>
               {ongs.map((ong) => (
+                (() => {
+                  const ongJovensCount = allJovens.filter(j => j.ongId === ong.id).length;
+                  return (
                 <div 
                   key={ong.id}
                   style={{
@@ -222,7 +226,7 @@ const AdminONGs = () => {
                   <div style={{ display: 'flex', gap: '20px', marginTop: '12px', fontSize: '14px' }}>
                     <div>
                       <span style={{ color: 'var(--gray)' }}>👨‍🎓</span>
-                      {' '}{ong.jovens?.length || 0} jovens
+                      {' '}{ongJovensCount} jovens
                     </div>
                     <div>
                       <span style={{ color: 'var(--gray)' }}>💼</span>
@@ -257,6 +261,8 @@ const AdminONGs = () => {
                     </button>
                   </div>
                 </div>
+                );
+                })()
               ))}
             </div>
           )}
@@ -270,13 +276,13 @@ const AdminONGs = () => {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', textAlign: 'center' }}>
                 <div>
                   <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--primary-blue)' }}>
-                    {selectedOng.jovens?.length || 0}
+                    {ongJovens.length}
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--gray)' }}>Jovens</div>
                 </div>
                 <div>
                   <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--primary-green)' }}>
-                    {selectedOng.stats?.activeJovens || 0}
+                    {ongJovens.filter(j => j.availability).length}
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--gray)' }}>Ativos</div>
                 </div>
