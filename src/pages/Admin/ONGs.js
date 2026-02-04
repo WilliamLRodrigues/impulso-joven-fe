@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import Header from '../../components/Header';
 import BottomNav from '../../components/BottomNav';
 import Card, { CardHeader } from '../../components/Card';
-import { ongService, jovemService } from '../../services';
+import { ongService, jovemService, bookingService, reviewService } from '../../services';
 
 const AdminONGs = () => {
   const [ongs, setOngs] = useState([]);
   const [allJovens, setAllJovens] = useState([]);
+  const [allBookings, setAllBookings] = useState([]);
+  const [allReviews, setAllReviews] = useState([]);
   const [selectedOng, setSelectedOng] = useState(null);
   const [ongJovens, setOngJovens] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -64,12 +66,16 @@ const AdminONGs = () => {
 
   const loadOngs = async () => {
     try {
-      const [ongsResponse, jovensResponse] = await Promise.all([
+      const [ongsResponse, jovensResponse, bookingsResponse, reviewsResponse] = await Promise.all([
         ongService.getAll(),
-        jovemService.getAll()
+        jovemService.getAll(),
+        bookingService.getAll({}),
+        reviewService.getAll({})
       ]);
       setOngs(ongsResponse.data);
       setAllJovens(jovensResponse.data || []);
+      setAllBookings(bookingsResponse.data || []);
+      setAllReviews(reviewsResponse.data || []);
     } catch (error) {
       console.error('Erro ao carregar ONGs:', error);
       alert('Erro ao carregar ONGs');
@@ -82,6 +88,23 @@ const AdminONGs = () => {
     setSelectedOng(ong);
     const filtered = allJovens.filter(j => j.ongId === ong.id);
     setOngJovens(filtered);
+  };
+
+  const getOngStats = (ongId) => {
+    const ongJovensList = allJovens.filter(j => j.ongId === ongId);
+    const ongJovensIds = ongJovensList.map(j => j.id);
+    const ongBookings = allBookings.filter(b => ongJovensIds.includes(b.jovemId));
+    const ongReviews = allReviews.filter(r => ongJovensIds.includes(r.jovemId));
+    const avgRating = ongReviews.length > 0
+      ? (ongReviews.reduce((sum, r) => sum + r.rating, 0) / ongReviews.length)
+      : 0;
+
+    return {
+      jovensCount: ongJovensList.length,
+      activeJovensCount: ongJovensList.filter(j => j.availability).length,
+      servicesCount: ongBookings.length,
+      avgRating
+    };
   };
 
   const handleCreateOng = async (e) => {
@@ -199,7 +222,7 @@ const AdminONGs = () => {
             <div>
               {ongs.map((ong) => (
                 (() => {
-                  const ongJovensCount = allJovens.filter(j => j.ongId === ong.id).length;
+                  const stats = getOngStats(ong.id);
                   return (
                 <div 
                   key={ong.id}
@@ -226,15 +249,15 @@ const AdminONGs = () => {
                   <div style={{ display: 'flex', gap: '20px', marginTop: '12px', fontSize: '14px' }}>
                     <div>
                       <span style={{ color: 'var(--gray)' }}>👨‍🎓</span>
-                      {' '}{ongJovensCount} jovens
+                      {' '}{stats.jovensCount} jovens
                     </div>
                     <div>
                       <span style={{ color: 'var(--gray)' }}>💼</span>
-                      {' '}{ong.stats?.totalServices || 0} serviços
+                      {' '}{stats.servicesCount} serviços
                     </div>
                     <div>
                       <span style={{ color: 'var(--gray)' }}>⭐</span>
-                      {' '}{ong.stats?.rating?.toFixed(1) || '0.0'}
+                      {' '}{stats.avgRating.toFixed(1)}
                     </div>
                   </div>
                   
@@ -276,19 +299,19 @@ const AdminONGs = () => {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', textAlign: 'center' }}>
                 <div>
                   <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--primary-blue)' }}>
-                    {ongJovens.length}
+                    {getOngStats(selectedOng.id).jovensCount}
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--gray)' }}>Jovens</div>
                 </div>
                 <div>
                   <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--primary-green)' }}>
-                    {ongJovens.filter(j => j.availability).length}
+                    {getOngStats(selectedOng.id).activeJovensCount}
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--gray)' }}>Ativos</div>
                 </div>
                 <div>
                   <div style={{ fontSize: '28px', fontWeight: '700', color: '#FFA726' }}>
-                    {selectedOng.stats?.totalServices || 0}
+                    {getOngStats(selectedOng.id).servicesCount}
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--gray)' }}>Serviços</div>
                 </div>
